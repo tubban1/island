@@ -14,11 +14,22 @@ export function validateGift(input){
   return value.trim();
  };
  const gift={version:1,recipient:text('recipient',40,true),sender:text('sender',40,true),title:text('title',20,true),greeting:text('greeting',180),letter:text('letter',4000,true),occasion:text('occasion',60)};
+ if(input.anniversaryDate&&typeof input.anniversaryDate==='string')gift.anniversaryDate=input.anniversaryDate.trim().slice(0,30);
  if(!DIFFICULTIES[input.difficulty])throw new Error('难度选项不正确。');
  gift.difficulty=input.difficulty;
  gift.theme=input.theme==='sea'?'sea':'warm';
  const validMusics=['music_box','sea_breeze','canon','starry','none'];
  gift.music=validMusics.includes(input.music)?input.music:'music_box';
+ const validAmbients=['waves','breeze','crackle'];
+ gift.ambient=Array.isArray(input.ambient)?input.ambient.filter(a=>validAmbients.includes(a)):['waves','breeze'];
+ gift.paperStyle=['parchment','watercolor'].includes(input.paperStyle)?input.paperStyle:'parchment';
+ if(input.reply&&typeof input.reply==='object'&&typeof input.reply.content==='string'){
+  gift.reply={
+   content:input.reply.content.trim().slice(0,500),
+   sender:typeof input.reply.sender==='string'?input.reply.sender.trim().slice(0,40):'TA',
+   createdAt:input.reply.createdAt||new Date().toISOString()
+  };
+ }
  if(!Array.isArray(input.photos)||input.photos.length>6)throw new Error('最多布置 6 张照片。');
  const slots=new Set();
  gift.photos=input.photos.map(photo=>{

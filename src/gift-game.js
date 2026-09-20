@@ -30,12 +30,16 @@ function createNewRoomData(recipient = '') {
     recipient: recipient,
     sender: '',
     occasion: '',
+    anniversaryDate: '',
     greeting: '有些话，想等你亲自到达，再慢慢告诉你。',
     letter: '谢谢你，成为我生命里特别的人。\n\n这座小岛，收藏着属于我们的时光。未来还想和你一起，留下更多回忆。',
     difficulty: 'easy',
     theme: 'warm',
     music: 'music_box',
+    ambient: ['waves', 'breeze'],
+    paperStyle: 'parchment',
     photos: [],
+    reply: null,
     giftId: null,
     updatedAt: new Date().toISOString()
   };
@@ -202,6 +206,26 @@ export function createGiftGame({scene, boat, keys, onIslandTitleChange}) {
         </label>
       </div>
 
+      <div class="field-pair">
+        <label>信纸质感
+          <select name="paperStyle">
+            <option value="parchment">📜 复古羊皮纸</option>
+            <option value="watercolor">🎨 清新水彩纸</option>
+          </select>
+        </label>
+        <label>纪念日日期（挂历展示）
+          <input type="date" name="anniversaryDate" id="anniversary-date-input">
+        </label>
+      </div>
+
+      <fieldset>
+        <legend>自然环境音效 <small>分层自然白噪音 · 可多选</small></legend>
+        <div class="ambient-options">
+          <label class="ambient-option"><input type="checkbox" name="ambient" value="waves" checked> <span>🌊 轻柔海浪拍岸声</span></label>
+          <label class="ambient-option"><input type="checkbox" name="ambient" value="breeze" checked> <span>🍃 窗外微风吹拂声</span></label>
+        </div>
+      </fieldset>
+
       <label>留在桌上的信<textarea name="letter" maxlength="4000" rows="6" required></textarea></label>
 
       <p id="editor-message" class="form-message" role="status"></p>
@@ -363,16 +387,89 @@ export function createGiftGame({scene, boat, keys, onIslandTitleChange}) {
         <button id="room-edit" type="button">继续布置</button>
       </div>
     </div>
-    <div id="room-intro-hint" class="room-intro-hint" role="status">拖动环顾 · 滚轮靠近 · WASD 平移 · 点击相框或信</div>
+    <div id="room-intro-hint" class="room-intro-hint" role="status">拖动环顾 · 滚轮靠近 · WASD 平移 · 点击相框、信件、大窗或八音盒</div>
     <div id="room-hotspot-hint" class="room-hotspot-hint" hidden></div>
+    <div id="room-teleport-bar" class="room-teleport-bar" aria-label="快捷视点传送">
+      <button type="button" class="teleport-pill" data-spot="table">☕ 茶几</button>
+      <button type="button" class="teleport-pill" data-spot="gallery">🖼️ 照片墙</button>
+      <button type="button" class="teleport-pill" data-spot="window">🌊 观海窗</button>
+      <button type="button" class="teleport-pill" data-spot="door">🚪 房门</button>
+    </div>
+    <div id="room-joystick" class="room-joystick" hidden aria-label="移动摇杆">
+      <div class="joystick-base">
+        <div id="joystick-thumb" class="joystick-thumb"></div>
+      </div>
+    </div>
     <output id="window-debug" hidden></output>
   </section>
 
   <dialog id="memory-dialog" class="gift-dialog memory">
     <button id="memory-close" class="close" aria-label="关闭回忆">×</button>
-    <img id="memory-image" alt="">
-    <h2 id="memory-title"></h2>
-    <p id="memory-copy"></p>
+    <div class="letter-tools" id="letter-tools" hidden>
+      <div class="paper-style-pills">
+        <button type="button" class="paper-pill active" data-paper="parchment" title="复古羊皮纸">📜 羊皮纸</button>
+        <button type="button" class="paper-pill" data-paper="watercolor" title="清新水彩纸">🎨 水彩纸</button>
+      </div>
+      <button type="button" id="letter-to-reply-btn" class="letter-reply-pill">💌 投入漂流瓶回信</button>
+    </div>
+    <div id="letter-paper-wrap" class="letter-paper-wrap">
+      <img id="memory-image" alt="">
+      <h2 id="memory-title"></h2>
+      <p id="memory-copy"></p>
+    </div>
+  </dialog>
+
+  <dialog id="calendar-dialog" class="gift-dialog calendar-dialog">
+    <button id="calendar-close" class="close" aria-label="关闭挂历">×</button>
+    <div class="calendar-card">
+      <div class="calendar-header">
+        <div class="calendar-wood-bar"></div>
+        <span class="calendar-occasion" id="calendar-occasion-text">我们的纪念日</span>
+      </div>
+      <div class="calendar-body">
+        <div class="calendar-month-year" id="calendar-my-text">2024 · 05</div>
+        <div class="calendar-day" id="calendar-day-text">20</div>
+        <div class="calendar-days-count" id="calendar-days-count">相伴的第 1 天 ✨</div>
+      </div>
+      <div class="calendar-footer">
+        <p class="calendar-note" id="calendar-note-text">四季流转，每一个日子都值得铭记。</p>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="reply-dialog" class="gift-dialog reply-dialog">
+    <button id="reply-close" class="close" aria-label="关闭漂流瓶">×</button>
+    <div class="sheet-heading">
+      <div>
+        <span class="eyebrow">DRIFT BOTTLE MESSAGE</span>
+        <h2 id="reply-title">漂流瓶的心愿与回信</h2>
+      </div>
+    </div>
+    <div id="reply-view-mode" hidden>
+      <div class="reply-message-card">
+        <p class="reply-sender-line"><span id="reply-sender-name">TA</span> 写下的回信：</p>
+        <p id="reply-content-text" class="reply-content-text"></p>
+        <span id="reply-date-text" class="reply-date-text"></span>
+      </div>
+      <div class="editor-footer">
+        <button type="button" id="reply-edit-btn" class="secondary" hidden>修改回信</button>
+        <button type="button" id="reply-done-btn" class="primary">放回漂流瓶</button>
+      </div>
+    </div>
+    <form id="reply-form">
+      <p class="subtle">将你的心愿或想对 TA 说的话装进漂流瓶，留在小屋里。<br>送礼的人查看小岛时也能读到你的回信。</p>
+      <label>你的名字 / 昵称
+        <input name="replySender" id="reply-sender-input" maxlength="40" placeholder="你的名字">
+      </label>
+      <label>回信内容
+        <textarea name="replyContent" id="reply-content-input" rows="5" maxlength="500" required placeholder="写下收到礼物的感受、想对 TA 说的话，或许下一个心愿..."></textarea>
+      </label>
+      <p id="reply-status-msg" class="form-message" role="status"></p>
+      <div class="editor-footer">
+        <button type="button" id="reply-cancel-btn" class="secondary">稍后再写</button>
+        <button type="submit" id="reply-submit-btn" class="primary">投入漂流瓶 🌊</button>
+      </div>
+    </form>
   </dialog>
 
   <div id="gift-toast" class="gift-toast" role="status" hidden></div>
@@ -474,7 +571,7 @@ export function createGiftGame({scene, boat, keys, onIslandTitleChange}) {
   }
 
   function readForm() {
-    for (const key of ['recipient', 'sender', 'title', 'occasion', 'greeting', 'letter', 'theme', 'difficulty', 'music']) {
+    for (const key of ['recipient', 'sender', 'title', 'occasion', 'anniversaryDate', 'greeting', 'letter', 'theme', 'difficulty', 'music', 'paperStyle']) {
       const item = form.elements.namedItem(key);
       if (item) {
         if (key === 'title') {
@@ -484,12 +581,14 @@ export function createGiftGame({scene, boat, keys, onIslandTitleChange}) {
         }
       }
     }
+    const ambientChecks = form.querySelectorAll('input[name="ambient"]:checked');
+    draft.ambient = Array.from(ambientChecks).map(cb => cb.value);
     saveRooms();
     notifyTitleChange();
   }
 
   function fillForm() {
-    for (const key of ['recipient', 'sender', 'title', 'occasion', 'greeting', 'letter', 'theme', 'difficulty', 'music']) {
+    for (const key of ['recipient', 'sender', 'title', 'occasion', 'anniversaryDate', 'greeting', 'letter', 'theme', 'difficulty', 'music', 'paperStyle']) {
       const item = form.elements.namedItem(key);
       if (item) {
         if (key === 'title') {
@@ -499,6 +598,10 @@ export function createGiftGame({scene, boat, keys, onIslandTitleChange}) {
         }
       }
     }
+    const ambient = draft.ambient || ['waves', 'breeze'];
+    form.querySelectorAll('input[name="ambient"]').forEach(cb => {
+      cb.checked = ambient.includes(cb.value);
+    });
     for (let i = 0; i < 6; i++) refreshPhoto(i);
     updateRoomSwitcher();
     notifyTitleChange();
@@ -712,6 +815,8 @@ export function createGiftGame({scene, boat, keys, onIslandTitleChange}) {
 
   function openPhoto(entry) {
     $('room-hotspot-hint').hidden = true;
+    $('letter-tools').hidden = true;
+    $('letter-paper-wrap').className = 'letter-paper-wrap';
     $('memory-image').hidden = false;
     $('memory-image').src = entry.src;
     $('memory-image').alt = entry.caption || '回忆照片';
@@ -748,16 +853,28 @@ export function createGiftGame({scene, boat, keys, onIslandTitleChange}) {
     $('room-menu-panel').hidden = true;
     $('room-menu').setAttribute('aria-expanded', 'false');
 
-    // 播放房间背景音乐
+    // 绑定木地板脚步声
+    room.onFootstep = () => synth.playFootstep();
+
+    // 播放房间背景音乐与分层环境白噪音
+    const ambientTracks = gift.ambient || ['waves', 'breeze'];
+    synth.setAmbient(ambientTracks);
+    synth.setWindowOpen(room.getWindowOpen());
+
     if (roomMusicEnabled && gift.music && gift.music !== 'none') {
       synth.play(gift.music, true);
     } else {
       synth.stop();
     }
 
+    // 移动端展示虚拟摇杆
+    if ('ontouchstart' in window || navigator.maxTouchPoints > 0 || innerWidth <= 768) {
+      $('room-joystick').hidden = false;
+    }
+
     clearTimeout(roomHintTimer);
     $('room-intro-hint').hidden = false;
-    roomHintTimer = setTimeout(() => $('room-intro-hint').hidden = true, 3800);
+    roomHintTimer = setTimeout(() => $('room-intro-hint').hidden = true, 4200);
   }
 
   $('room-menu').onclick = () => {
@@ -788,19 +905,216 @@ export function createGiftGame({scene, boat, keys, onIslandTitleChange}) {
   $('editor-preview').onclick = () => showRoom(true);
   $('room-edit').onclick = editor;
 
+  // 快捷视点传送
+  root.querySelectorAll('.teleport-pill').forEach(btn => {
+    btn.onclick = () => {
+      const spot = btn.dataset.spot;
+      room.teleportTo(spot);
+      toast(`已移动到${btn.textContent.replace(/^[^\s]+ /, '')}`);
+    };
+  });
+
+  // 手机端虚拟行走摇杆
+  let joystickActive = false;
+  let joystickForward = 0;
+  let joystickStrafe = 0;
+  const joystick = $('room-joystick');
+  const thumb = $('joystick-thumb');
+  if (joystick && thumb) {
+    const maxR = 34;
+    let startX = 0, startY = 0, touchId = null;
+    const onTouchStart = e => {
+      const touch = Array.from(e.changedTouches).find(t => joystick.contains(t.target) || t.target === joystick);
+      if (!touch || touchId !== null) return;
+      touchId = touch.identifier;
+      joystickActive = true;
+      const rect = joystick.getBoundingClientRect();
+      startX = rect.left + rect.width / 2;
+      startY = rect.top + rect.height / 2;
+      updateTouch(touch);
+    };
+    const onTouchMove = e => {
+      if (!joystickActive) return;
+      const touch = Array.from(e.changedTouches).find(t => t.identifier === touchId);
+      if (!touch) return;
+      e.preventDefault();
+      updateTouch(touch);
+    };
+    const onTouchEnd = e => {
+      if (!joystickActive) return;
+      const touch = Array.from(e.changedTouches).find(t => t.identifier === touchId);
+      if (!touch) return;
+      joystickActive = false;
+      touchId = null;
+      joystickForward = 0;
+      joystickStrafe = 0;
+      thumb.style.transform = 'translate(0px, 0px)';
+    };
+    function updateTouch(touch) {
+      const dx = touch.clientX - startX;
+      const dy = touch.clientY - startY;
+      const dist = Math.hypot(dx, dy);
+      const clampedDist = Math.min(dist, maxR);
+      const angle = Math.atan2(dy, dx);
+      const cx = Math.cos(angle) * clampedDist;
+      const cy = Math.sin(angle) * clampedDist;
+      thumb.style.transform = `translate(${cx}px, ${cy}px)`;
+      joystickForward = -cy / maxR;
+      joystickStrafe = cx / maxR;
+    }
+    joystick.addEventListener('touchstart', onTouchStart, {passive: false});
+    window.addEventListener('touchmove', onTouchMove, {passive: false});
+    window.addEventListener('touchend', onTouchEnd);
+    window.addEventListener('touchcancel', onTouchEnd);
+  }
+
   function openLetter() {
     $('room-hotspot-hint').hidden = true;
     $('memory-image').hidden = true;
     $('memory-image').removeAttribute('src');
+    $('letter-tools').hidden = false;
     text('memory-title', `亲爱的 ${gift.recipient || '你'}：`);
     text('memory-copy', gift.letter + `\n\n—— ${gift.sender || '送你小岛的人'}`);
+    const currentPaper = gift.paperStyle || 'parchment';
+    $('letter-paper-wrap').className = 'letter-paper-wrap paper-' + currentPaper;
+    root.querySelectorAll('.paper-pill').forEach(pill => {
+      pill.classList.toggle('active', pill.dataset.paper === currentPaper);
+    });
     $('memory-dialog').showModal();
   }
 
+  // 信纸质感切换
+  root.querySelectorAll('.paper-pill').forEach(pill => {
+    pill.onclick = () => {
+      const style = pill.dataset.paper;
+      gift.paperStyle = style;
+      draft.paperStyle = style;
+      saveRooms();
+      $('letter-paper-wrap').className = 'letter-paper-wrap paper-' + style;
+      root.querySelectorAll('.paper-pill').forEach(p => p.classList.toggle('active', p === pill));
+    };
+  });
+
+  $('letter-to-reply-btn').onclick = () => {
+    $('memory-dialog').close();
+    openReply();
+  };
+
   $('memory-close').onclick = () => $('memory-dialog').close();
+
+  function openCalendar() {
+    $('room-hotspot-hint').hidden = true;
+    const occ = (gift.occasion || '我们的纪念日').trim();
+    text('calendar-occasion-text', occ);
+    const dateStr = gift.anniversaryDate;
+    if (dateStr) {
+      const d = new Date(dateStr);
+      if (!isNaN(d.getTime())) {
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        text('calendar-my-text', `${year} · ${month}`);
+        text('calendar-day-text', day);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        d.setHours(0, 0, 0, 0);
+        const diffDays = Math.round((today - d) / (1000 * 60 * 60 * 24));
+        if (diffDays >= 0) {
+          text('calendar-days-count', `相伴的第 ${diffDays + 1} 天 ✨`);
+        } else {
+          text('calendar-days-count', `距离纪念日还有 ${Math.abs(diffDays)} 天 ⏳`);
+        }
+      } else {
+        setDefaultCalendar();
+      }
+    } else {
+      setDefaultCalendar();
+    }
+    $('calendar-dialog').showModal();
+  }
+
+  function setDefaultCalendar() {
+    const today = new Date();
+    text('calendar-my-text', `${today.getFullYear()} · ${String(today.getMonth() + 1).padStart(2, '0')}`);
+    text('calendar-day-text', String(today.getDate()).padStart(2, '0'));
+    text('calendar-days-count', '相伴的美好时光 ✨');
+  }
+
+  $('calendar-close').onclick = () => $('calendar-dialog').close();
+
+  function openReply() {
+    $('room-hotspot-hint').hidden = true;
+    const r = gift.reply || draft.reply;
+    const viewMode = $('reply-view-mode');
+    const formMode = $('reply-form');
+    if (r && r.content) {
+      viewMode.hidden = false;
+      formMode.hidden = true;
+      text('reply-sender-name', r.sender || 'TA');
+      text('reply-content-text', r.content);
+      const dateStr = r.createdAt ? new Date(r.createdAt).toLocaleDateString('zh-CN', {year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'}) : '';
+      text('reply-date-text', dateStr ? `寄于 ${dateStr}` : '');
+      $('reply-edit-btn').hidden = !recipientMode;
+    } else {
+      viewMode.hidden = true;
+      formMode.hidden = false;
+      $('reply-sender-input').value = recipientMode ? (gift.recipient || '') : '';
+      $('reply-content-input').value = '';
+      text('reply-status-msg', '');
+    }
+    $('reply-dialog').showModal();
+  }
+
+  $('reply-close').onclick = () => $('reply-dialog').close();
+  $('reply-done-btn').onclick = () => $('reply-dialog').close();
+  $('reply-cancel-btn').onclick = () => $('reply-dialog').close();
+  $('reply-edit-btn').onclick = () => {
+    const r = gift.reply || draft.reply;
+    $('reply-view-mode').hidden = true;
+    $('reply-form').hidden = false;
+    if (r) {
+      $('reply-sender-input').value = r.sender || '';
+      $('reply-content-input').value = r.content || '';
+    }
+    text('reply-status-msg', '');
+  };
+
+  $('reply-form').onsubmit = async (e) => {
+    e.preventDefault();
+    const sender = ($('reply-sender-input').value.trim() || 'TA').slice(0, 40);
+    const content = $('reply-content-input').value.trim().slice(0, 500);
+    if (!content) return;
+    const submitBtn = $('reply-submit-btn');
+    submitBtn.disabled = true;
+    text('reply-status-msg', '正在将回信放入漂流瓶…');
+    const replyData = { sender, content, createdAt: new Date().toISOString() };
+    const giftId = recipientMode ? (new URLSearchParams(location.search).get('gift') || '') : (draft.giftId || '');
+    try {
+      if (giftId) {
+        const res = await fetch(`/api/gifts?action=reply&id=${encodeURIComponent(giftId)}`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ reply: replyData })
+        });
+        const result = await res.json();
+        if (!res.ok) throw new Error(result.error || '回信保存失败，请稍后重试。');
+      }
+      gift.reply = replyData;
+      draft.reply = replyData;
+      saveRooms();
+      room.update(gift);
+      toast('回信已妥善放入漂流瓶，随海风留在小岛上 🌊');
+      $('reply-dialog').close();
+    } catch (err) {
+      text('reply-status-msg', err.message);
+    } finally {
+      submitBtn.disabled = false;
+    }
+  };
 
   function leaveRoom() {
     synth.stop();
+    synth.setAmbient([]);
     state.phase = recipientMode ? 'ashore' : 'creator';
     root.classList.remove('room-active');
     $('room-ui').hidden = true;
@@ -1225,7 +1539,24 @@ export function createGiftGame({scene, boat, keys, onIslandTitleChange}) {
       $('room-menu').setAttribute('aria-expanded', 'false');
       const hit = room.pick(event.clientX / innerWidth * 2 - 1, 1 - event.clientY / innerHeight * 2);
       if (hit?.action === 'letter') openLetter();
-      else if (hit && Number.isInteger(hit.slot)) {
+      else if (hit?.action === 'window') {
+        const isOpen = room.toggleWindow();
+        synth.setWindowOpen(isOpen);
+        toast(isOpen ? '推开了木窗，海风轻拂而来…' : '轻轻合上了木窗。');
+      } else if (hit?.action === 'music_box') {
+        room.triggerMusicBox();
+        synth.playChimeTink();
+        if (synth.getSong() !== 'music_box') {
+          synth.play('music_box', true);
+          toast('八音盒奏起了清脆旋律 ♫');
+        } else {
+          toast('拧动了八音盒发条 ♫');
+        }
+      } else if (hit?.action === 'calendar') {
+        openCalendar();
+      } else if (hit?.action === 'reply') {
+        openReply();
+      } else if (hit && Number.isInteger(hit.slot)) {
         const entry = gift.photos.find(p => p.slot === hit.slot);
         if (entry) openPhoto(entry);
         else if (!recipientMode) toast('这个相框还空着，可以在「继续布置」中添加照片。');
@@ -1237,7 +1568,13 @@ export function createGiftGame({scene, boat, keys, onIslandTitleChange}) {
         return false;
       }
       const hit = room.pick(event.clientX / innerWidth * 2 - 1, 1 - event.clientY / innerHeight * 2);
-      const label = hit?.action === 'letter' ? '打开桌上的信' : Number.isInteger(hit?.slot) ? '查看相框' : '';
+      let label = '';
+      if (hit?.action === 'letter') label = '打开桌上的信';
+      else if (hit?.action === 'window') label = room.getWindowOpen() ? '关上海景大窗' : '推开木窗 · 吹海风';
+      else if (hit?.action === 'music_box') label = '旋转八音盒发条 ♫';
+      else if (hit?.action === 'calendar') label = '查看纪念日挂历';
+      else if (hit?.action === 'reply') label = (gift.reply || draft.reply) ? '查看漂流瓶回信' : '写下漂流瓶回信';
+      else if (Number.isInteger(hit?.slot)) label = '查看相框';
       $('room-hotspot-hint').hidden = !label;
       if (label) text('room-hotspot-hint', label);
       return !!label;
@@ -1253,6 +1590,10 @@ export function createGiftGame({scene, boat, keys, onIslandTitleChange}) {
       room.zoom(delta);
     },
     moveRoom(dt) {
+      if (root.querySelector('dialog[open], [role="dialog"]:not([hidden])')) return;
+      if (joystickActive) {
+        room.moveDir(joystickForward, joystickStrafe, dt);
+      }
       room.move(keys, dt);
     },
     renderRoom: (renderer, t) => {
@@ -1283,4 +1624,3 @@ export function createGiftGame({scene, boat, keys, onIslandTitleChange}) {
     }
   };
 }
-

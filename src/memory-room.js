@@ -62,6 +62,51 @@ export function createMemoryRoom(exterior){
  sphere(.055,.68,1.7,3.87,palette.brass); // 黄铜门把手
  box(2.0,.02,1.2,0,.03,3.15,palette.rug); // 迎宾小地毯
 
+  // 📅 纪念日挂历（实木背板 + 动态手撕日历纸面，可点击放大查看）
+  const calendarGroup=new THREE.Group();calendarGroup.position.set(-1.45,2.35,3.95);calendarGroup.rotation.y=Math.PI;group.add(calendarGroup);
+  const calBacking=new THREE.Mesh(new RoundedBoxGeometry(.64,.88,.03,2,.015),palette.oak);calendarGroup.add(calBacking);
+  const calPin=new THREE.Mesh(new THREE.CylinderGeometry(.016,.016,.03,10),palette.brass);calPin.rotation.x=Math.PI/2;calPin.position.set(0,.39,.02);calendarGroup.add(calPin);
+  const calCanvas=document.createElement('canvas');calCanvas.width=384;calCanvas.height=512;
+  const calTexture=new THREE.CanvasTexture(calCanvas);
+  const calPaper=new THREE.Mesh(new THREE.PlaneGeometry(.54,.74),new THREE.MeshBasicMaterial({map:calTexture}));
+  calPaper.position.set(0,-.03,.018);calendarGroup.add(calPaper);
+  const calendarHotspot=new THREE.Mesh(new THREE.PlaneGeometry(.65,.9),new THREE.MeshBasicMaterial({transparent:true,opacity:0,depthWrite:false}));
+  calendarHotspot.position.set(-1.45,2.35,3.92);calendarHotspot.rotation.y=Math.PI;calendarHotspot.userData={action:'calendar',title:'纪念日挂历'};group.add(calendarHotspot);
+
+  function drawCalendar(anniversaryText,occasionTitle){
+    const ctx=calCanvas.getContext('2d');
+    ctx.fillStyle='#faf6ec';ctx.fillRect(0,0,384,512);
+    // 顶部红皮
+    ctx.fillStyle='#b8453d';ctx.fillRect(0,0,384,105);
+    ctx.fillStyle='#ffffff';ctx.font='bold 28px sans-serif';ctx.textAlign='center';
+    ctx.fillText('OUR SPECIAL DAY',192,48);
+    ctx.font='18px sans-serif';ctx.fillText('纪念日 · 岁月静好',192,82);
+    // 中间大字日期
+    let dateStr='5.20',subText='相遇的特别时刻';
+    if(anniversaryText){
+      const match=anniversaryText.match(/(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/);
+      if(match){
+        dateStr=`${parseInt(match[2])}.${parseInt(match[3])}`;
+        const days=Math.max(1,Math.floor((Date.now()-new Date(anniversaryText).getTime())/(1000*60*60*24)));
+        subText=`相伴相知的第 ${days} 天`;
+      }else{
+        dateStr=anniversaryText.slice(0,10);
+      }
+    }
+    ctx.fillStyle='#2b4e43';ctx.font='bold 84px Georgia,serif';ctx.fillText(dateStr,192,260);
+    // 底部寄语
+    ctx.fillStyle='#6c7f6d';ctx.font='bold 22px sans-serif';ctx.fillText(subText,192,345);
+    if(occasionTitle){
+      ctx.fillStyle='#988062';ctx.font='italic 19px Georgia,serif';
+      ctx.fillText(`「${occasionTitle}」`,192,400);
+    }
+    // 底部小印章
+    ctx.strokeStyle='#b8453d';ctx.lineWidth=3;ctx.strokeRect(144,430,96,44);
+    ctx.fillStyle='#b8453d';ctx.font='bold 18px sans-serif';ctx.fillText('LOVE',192,460);
+    calTexture.needsUpdate=true;
+  }
+  drawCalendar('2024-05-20','初见于夏日');
+
  // 【天花板与厚实木梁 - 完整封闭顶部，抬头可见温馨木梁与吊灯】
  box(10.2,.2,8.4,0,4.8,.1,palette.cream);
  for(let i=0;i<4;i++){
@@ -83,13 +128,30 @@ export function createMemoryRoom(exterior){
  box(10,.14,.12,0,.16,-3.67,palette.cream);box(.12,.14,7.8,-4.79,.16,.1,palette.cream);
  box(10,.18,.27,0,4.7,-3.74,palette.oak);box(.27,.18,8,-4.86,4.7,.1,palette.oak);
 
- // 面海大窗与窗帘
+ // 🪟 面海大窗与可推开窗扇
  const windowMaterial=new THREE.MeshBasicMaterial({map:windowView.texture});
  const windowMesh=new THREE.Mesh(new THREE.PlaneGeometry(3.65,2.65),windowMaterial);windowMesh.position.set(2.57,2.82,-3.88);group.add(windowMesh);
  for(const x of [.67,4.47]){box(.13,2.9,.20,x,2.82,-3.74,palette.cream);box(.055,2.65,.04,x+(x<2? .1:-.1),2.82,-3.60,palette.oak);}
  for(const y of [1.40,4.23])box(3.94,.14,.20,2.57,y,-3.74,palette.cream);
  box(4.2,.14,.48,2.57,1.34,-3.58,palette.oak);box(.055,2.69,.11,2.57,2.82,-3.61,palette.cream);box(3.67,.055,.11,2.57,2.68,-3.61,palette.cream);
  beam([.18,4.45,-3.37],[4.95,4.45,-3.37],.035,palette.brass);sphere(.075,.14,4.45,-3.37,palette.brass);sphere(.075,4.99,4.45,-3.37,palette.brass);
+
+  // 左右开合活动窗扇（推开可吹海风）
+  let isWindowOpen=false,windowAngle=0,targetWindowAngle=0;
+  const windowLeftHinge=new THREE.Group();windowLeftHinge.position.set(.76,2.82,-3.66);group.add(windowLeftHinge);
+  const leftCasement=new THREE.Mesh(new THREE.BoxGeometry(1.78,2.62,.035),mat('#f4ebd9',{roughness:.65}));
+  leftCasement.position.set(.89,0,0);windowLeftHinge.add(leftCasement);
+  const leftHandle=new THREE.Mesh(new THREE.CylinderGeometry(.01,.01,.14,8),palette.brass);leftHandle.position.set(1.72,0,.025);windowLeftHinge.add(leftHandle);
+
+  const windowRightHinge=new THREE.Group();windowRightHinge.position.set(4.38,2.82,-3.66);group.add(windowRightHinge);
+  const rightCasement=new THREE.Mesh(new THREE.BoxGeometry(1.78,2.62,.035),mat('#f4ebd9',{roughness:.65}));
+  rightCasement.position.set(-.89,0,0);windowRightHinge.add(rightCasement);
+  const rightHandle=new THREE.Mesh(new THREE.CylinderGeometry(.01,.01,.14,8),palette.brass);rightHandle.position.set(-1.72,0,.025);windowRightHinge.add(rightHandle);
+
+  // 窗户点击交互热点
+  const windowHotspot=new THREE.Mesh(new THREE.PlaneGeometry(3.6,2.6),new THREE.MeshBasicMaterial({transparent:true,opacity:0,depthWrite:false}));
+  windowHotspot.position.set(2.57,2.82,-3.55);windowHotspot.userData={action:'window',title:'推开海景大窗'};group.add(windowHotspot);
+
  const curtains=[];
  for(const x of [.55,4.56]){
   const geo=new THREE.PlaneGeometry(.86,3.10,16,24),pos=geo.attributes.position;
@@ -129,13 +191,63 @@ export function createMemoryRoom(exterior){
  const letterHotspot=new THREE.Mesh(new THREE.PlaneGeometry(1.8,1.4),new THREE.MeshBasicMaterial({transparent:true,opacity:0,depthWrite:false,side:THREE.DoubleSide}));
  letterHotspot.rotation.x=-Math.PI/2;letterHotspot.position.set(-.3,.851,.4);letterHotspot.userData.action='letter';group.add(letterHotspot);
  for(let i=0;i<4;i++){const line=box(.38-i*.035,.003,.006,-.41,.819,.38+i*.047,palette.edge);line.rotation.y=.12;}
- cyl(.041,.041,.013,-.17,.84,.33,palette.rust,16);
- for(const [x,z] of [[-.87,.14],[.35,.72]]){cyl(.12,.12,.018,x,.813,z,palette.ceramic);cyl(.075,.057,.13,x,.88,z,palette.ceramic);cyl(.06,.06,.006,x,.948,z,palette.edge);const handle=add(new THREE.TorusGeometry(.05,.013,6,12),palette.ceramic,x+.075,.89,z);handle.rotation.y=Math.PI/2;}
+  cyl(.041,.041,.013,-.17,.84,.33,palette.rust,16);
+  for(const [x,z] of [[-.87,.14],[.35,.72]]){cyl(.12,.12,.018,x,.813,z,palette.ceramic);cyl(.075,.057,.13,x,.88,z,palette.ceramic);cyl(.06,.06,.006,x,.948,z,palette.edge);const handle=add(new THREE.TorusGeometry(.05,.013,6,12),palette.ceramic,x+.075,.89,z);handle.rotation.y=Math.PI/2;}
 
- function flowerPot(x,y,z,scale=1){
-  cyl(.18*scale,.13*scale,.31*scale,x,y+.15*scale,z,palette.ceramic,20);
-  for(let i=0;i<5;i++){const a=i*2.4,tx=x+Math.cos(a)*.15*scale,tz=z+Math.sin(a)*.13*scale,top=y+(.55+(i%3)*.08)*scale;beam([x,y+.26*scale,z],[tx,top,tz],.009*scale,palette.green);for(let j=0;j<5;j++)sphere(.055*scale,tx+Math.cos(j*1.256)*.06*scale,top,tz+Math.sin(j*1.256)*.06*scale,i%2?palette.rose:palette.cream,1,.45,1);sphere(.027*scale,tx,top+.013*scale,tz,palette.brass);}
- }
+  // ☕ 咖啡杯袅袅热气粒子系统
+  const steamGroup=new THREE.Group();
+  steamGroup.position.set(-.87,.98,.14); // 位于左侧咖啡杯口
+  group.add(steamGroup);
+  const steamCanvas=document.createElement('canvas');steamCanvas.width=steamCanvas.height=64;
+  const sCtx=steamCanvas.getContext('2d');
+  const sGrad=sCtx.createRadialGradient(32,32,0,32,32,32);
+  sGrad.addColorStop(0,'rgba(255,255,255,0.7)');sGrad.addColorStop(.35,'rgba(255,255,255,0.22)');sGrad.addColorStop(1,'rgba(255,255,255,0)');
+  sCtx.fillStyle=sGrad;sCtx.fillRect(0,0,64,64);
+  const steamTexture=new THREE.CanvasTexture(steamCanvas);
+  const steamParticles=[];
+  const steamMat=new THREE.SpriteMaterial({map:steamTexture,transparent:true,opacity:.35,depthWrite:false});
+  for(let i=0;i<14;i++){
+    const sprite=new THREE.Sprite(steamMat.clone());
+    sprite.scale.set(.06,.06,1);
+    steamGroup.add(sprite);
+    steamParticles.push({sprite,age:Math.random()*2.4,maxAge:2.0+Math.random()*.8,angle:Math.random()*Math.PI*2});
+  }
+
+  // 🐚 茶几上的扇贝与螺旋海螺
+  const shellGeo=new THREE.CylinderGeometry(.065,.015,.012,12,1,false,0,Math.PI);
+  const shellMesh=new THREE.Mesh(shellGeo,mat('#f7eee1',{roughness:.55}));
+  shellMesh.rotation.x=-Math.PI/2;shellMesh.rotation.z=.4;shellMesh.position.set(-.58,.818,.62);group.add(shellMesh);
+  const conchMesh=new THREE.Mesh(new THREE.ConeGeometry(.028,.10,8),mat('#eddac4',{roughness:.6}));
+  conchMesh.rotation.z=Math.PI/2.4;conchMesh.rotation.y=.7;conchMesh.position.set(-.46,.82,.65);group.add(conchMesh);
+
+  // 🍾 漂流玻璃瓶（内含羊皮纸卷与红丝带，点击可回信）
+  const bottleGroup=new THREE.Group();bottleGroup.position.set(.12,.828,.32);group.add(bottleGroup);
+  const glassMat=mat('#d6ebe6',{transparent:true,opacity:.48,roughness:.15});
+  const bottleBody=new THREE.Mesh(new THREE.CylinderGeometry(.045,.045,.18,16),glassMat);bottleBody.rotation.z=Math.PI/2;bottleGroup.add(bottleBody);
+  const bottleNeck=new THREE.Mesh(new THREE.CylinderGeometry(.022,.032,.05,12),glassMat);bottleNeck.rotation.z=Math.PI/2;bottleNeck.position.set(.11,0,0);bottleGroup.add(bottleNeck);
+  const cork=new THREE.Mesh(new THREE.CylinderGeometry(.02,.024,.025,10),mat('#987046'));cork.rotation.z=Math.PI/2;cork.position.set(.145,0,0);bottleGroup.add(cork);
+  const scroll=new THREE.Mesh(new THREE.CylinderGeometry(.018,.018,.12,10),mat('#e6dcbe'));scroll.rotation.z=Math.PI/2;bottleGroup.add(scroll);
+  const ribbon=new THREE.Mesh(new THREE.TorusGeometry(.02,.005,6,12),mat('#d84440'));ribbon.rotation.y=Math.PI/2;bottleGroup.add(ribbon);
+  const bottleHotspot=new THREE.Mesh(new THREE.BoxGeometry(.35,.2,.25),new THREE.MeshBasicMaterial({transparent:true,opacity:0,depthWrite:false}));
+  bottleHotspot.position.set(.12,.83,.32);bottleHotspot.userData={action:'reply',title:'漂流瓶回信'};group.add(bottleHotspot);
+
+  // 🎵 复古机械八音盒（金色发条旋钮，可点击旋转把玩并切换音乐）
+  const musicBoxGroup=new THREE.Group();musicBoxGroup.position.set(-.05,.83,.66);group.add(musicBoxGroup);
+  const boxBody=new THREE.Mesh(new RoundedBoxGeometry(.26,.13,.18,2,.015),palette.oak);musicBoxGroup.add(boxBody);
+  const boxLid=new THREE.Mesh(new RoundedBoxGeometry(.26,.018,.18,2,.01),palette.edge);boxLid.position.set(0,.068,-.085);boxLid.rotation.x=-Math.PI/3.2;musicBoxGroup.add(boxLid);
+  const cylinder=new THREE.Mesh(new THREE.CylinderGeometry(.022,.022,.15,14),palette.brass);cylinder.rotation.z=Math.PI/2;cylinder.position.set(0,.038,0);musicBoxGroup.add(cylinder);
+  const comb=new THREE.Mesh(new THREE.BoxGeometry(.16,.012,.035),palette.brass);comb.position.set(0,.038,.036);musicBoxGroup.add(comb);
+  const windingPivot=new THREE.Group();windingPivot.position.set(.135,.02,0);musicBoxGroup.add(windingPivot);
+  const stem=new THREE.Mesh(new THREE.CylinderGeometry(.007,.007,.035,8),palette.brass);stem.rotation.z=Math.PI/2;windingPivot.add(stem);
+  const keyWing=new THREE.Mesh(new THREE.TorusGeometry(.025,.005,6,12),palette.brass);keyWing.rotation.y=Math.PI/2;keyWing.position.x=.022;windingPivot.add(keyWing);
+  const musicBoxHotspot=new THREE.Mesh(new THREE.BoxGeometry(.38,.28,.28),new THREE.MeshBasicMaterial({transparent:true,opacity:0,depthWrite:false}));
+  musicBoxHotspot.position.copy(musicBoxGroup.position);musicBoxHotspot.userData={action:'music_box',title:'机械八音盒'};group.add(musicBoxHotspot);
+  let windingSpinTime=0;
+
+  function flowerPot(x,y,z,scale=1){
+   cyl(.18*scale,.13*scale,.31*scale,x,y+.15*scale,z,palette.ceramic,20);
+   for(let i=0;i<5;i++){const a=i*2.4,tx=x+Math.cos(a)*.15*scale,tz=z+Math.sin(a)*.13*scale,top=y+(.55+(i%3)*.08)*scale;beam([x,y+.26*scale,z],[tx,top,tz],.009*scale,palette.green);for(let j=0;j<5;j++)sphere(.055*scale,tx+Math.cos(j*1.256)*.06*scale,top,tz+Math.sin(j*1.256)*.06*scale,i%2?palette.rose:palette.cream,1,.45,1);sphere(.027*scale,tx,top+.013*scale,tz,palette.brass);}
+  }
  flowerPot(.34,.80,.08,.63);flowerPot(3.73,1.42,-3.44,.8);
 
  // 单人扶手椅与落地灯
@@ -182,7 +294,7 @@ export function createMemoryRoom(exterior){
 
  // ==================== 第一人称全景沉浸式相机与行走系统 ====================
  // 人眼位置（站在室内茶几前方偏右，高度为真实人眼 1.62m）
- const defaultEye = {x:.15, y:1.62, z:1.35};
+ const defaultEye = {x:.15, y:1.62, z:2.65};
  const eyePos = new THREE.Vector3(defaultEye.x, defaultEye.y, defaultEye.z);
  const targetEyePos = new THREE.Vector3(defaultEye.x, defaultEye.y, defaultEye.z);
 
@@ -196,99 +308,192 @@ export function createMemoryRoom(exterior){
    targetEyePos.x = THREE.MathUtils.clamp(targetEyePos.x, -3.8, 3.8);
    targetEyePos.z = THREE.MathUtils.clamp(targetEyePos.z, -1.9, 3.2);
    targetEyePos.y = 1.62; // 保持人眼高度稳定
+   // Furniture footprints include space for the visitor's body.
+   const obstacles=[[-3.8,.5,-3.5,-1.35],[.65,4.45,-3.5,-2.1],[-4.55,-2.75,.2,1.85],[3.2,4.9,-1.25,1.4],[-1.6,1,-.65,1.45]];
+   for(const [left,right,back,front] of obstacles){
+     const {x,z}=targetEyePos;
+     if(x>left&&x<right&&z>back&&z<front){
+       const distances=[x-left,right-x,z-back,front-z];
+       const side=distances.indexOf(Math.min(...distances));
+       if(side===0)targetEyePos.x=left;
+       else if(side===1)targetEyePos.x=right;
+       else if(side===2)targetEyePos.z=back;
+       else targetEyePos.z=front;
+     }
+   }
  }
 
- function hotspot(x,y){
-   raycaster.setFromCamera(new THREE.Vector2(x,y),camera);
-   const hit=raycaster.intersectObjects([...frames,paper,envelope,letterHotspot])[0];
-   return hit?hit.object.userData:null;
+  let onFootstepCb = null;
+  let accumulatedDist = 0;
+
+  function hotspot(x,y){
+    raycaster.setFromCamera(new THREE.Vector2(x,y),camera);
+    const hit=raycaster.intersectObjects([...frames,paper,envelope,letterHotspot,bottleHotspot,musicBoxHotspot,calendarHotspot,windowHotspot])[0];
+    return hit?hit.object.userData:null;
+  }
+
+  function update(gift){
+   revision++;const current=revision;measureStart=performance.now();measuredFrames=0;
+   const sea=gift.theme==='sea';palette.wall.color.set(sea?'#dce6dc':'#e9deca');palette.panel.color.set(sea?'#94b2a5':'#98a98c');
+   drawCalendar(gift.anniversaryDate, gift.occasion);
+   frames.forEach((photo,i)=>{if(photo.material.map&&!placeholders.includes(photo.material.map))photo.material.map.dispose();photo.material.map=placeholders[i];photo.material.color.set('#ffffff');photo.material.needsUpdate=true;photo.scale.set(1,1,1);});
+   for(const entry of gift.photos)loader.load(entry.src,texture=>{
+    if(current!==revision){texture.dispose();return;}texture.colorSpace=THREE.SRGBColorSpace;
+    const photo=frames[entry.slot],aspect=texture.image.width/texture.image.height,w=photo.userData.width,h=photo.userData.height,fit=Math.min(w/aspect,h);
+    photo.material.map=texture;photo.scale.set(aspect*fit/w,fit/h,1);photo.material.needsUpdate=true;
+   });
+  }
+
+  const SPOTS = {
+    'window': {x: 2.57, y: 1.62, z: -2.0, yaw: 0, pitch: -0.04},
+    'gallery': {x: -3.2, y: 1.62, z: -1.6, yaw: -Math.PI / 2, pitch: 0.08},
+    'table': {x: -.3, y: 1.62, z: 1.45, yaw: 0.12, pitch: -0.32},
+    'door': {x: 0, y: 1.62, z: 2.8, yaw: 0, pitch: -0.06}
+  };
+
+  return {
+   update,windowView,
+   pick:hotspot,
+   onFootstep(fn){ onFootstepCb = fn; },
+
+   // 【第一人称全景环视】拖拽转动视角（360度水平无死角 + 俯仰角仰望/低头）
+   orbit(dx,dy){
+     targetEyeYaw -= dx * .0042;
+     targetEyePitch = THREE.MathUtils.clamp(targetEyePitch + dy * .0035, -1.18, 1.18);
+   },
+
+   // 【第一人称视场角微调】滚轮/双指捏合变焦缩放
+   zoom(delta){
+     targetFov = THREE.MathUtils.clamp(targetFov + delta * .045, 52, 86);
+   },
+
+   // 【第一人称水平平移/挪步】
+   pan(dx,dy){
+     const step = .0038;
+     const rightX = Math.cos(targetEyeYaw);
+     const rightZ = -Math.sin(targetEyeYaw);
+     const mx = -rightX * dx * step - Math.sin(targetEyeYaw) * dy * step;
+     const mz = -rightZ * dx * step - Math.cos(targetEyeYaw) * dy * step;
+     targetEyePos.x += mx;
+     targetEyePos.z += mz;
+     accumulatedDist += Math.hypot(mx, mz);
+     if (accumulatedDist > 0.75) {
+       if (onFootstepCb) onFootstepCb();
+       accumulatedDist = 0;
+     }
+     constrainEye();
+   },
+
+   // 【第一人称移动行走】WASD / 方向键 / 摇杆在屋内自如行走
+   moveDir(forward, strafe, dt){
+     if (!forward && !strafe) return;
+     const step = 2.0 * Math.min(dt,.05) / Math.max(1,Math.hypot(forward,strafe));
+     const fwdX = -Math.sin(targetEyeYaw);
+     const fwdZ = -Math.cos(targetEyeYaw);
+     const rightX = Math.cos(targetEyeYaw);
+     const rightZ = -Math.sin(targetEyeYaw);
+     const mx = (fwdX * forward + rightX * strafe) * step;
+     const mz = (fwdZ * forward + rightZ * strafe) * step;
+     targetEyePos.x += mx;
+     targetEyePos.z += mz;
+     accumulatedDist += Math.hypot(mx, mz);
+     if (accumulatedDist > 0.75) {
+       if (onFootstepCb) onFootstepCb();
+       accumulatedDist = 0;
+     }
+     constrainEye();
+   },
+   move(keys,dt){
+     const forward = (keys.has('KeyW')||keys.has('ArrowUp')?1:0)-(keys.has('KeyS')||keys.has('ArrowDown')?1:0);
+     const strafe = (keys.has('KeyD')||keys.has('ArrowRight')?1:0)-(keys.has('KeyA')||keys.has('ArrowLeft')?1:0);
+     this.moveDir(forward, strafe, dt);
+   },
+
+   // 【快捷视点传送】一键移动到窗边/照片墙/茶几/门口
+   teleportTo(spotId){
+     const s = SPOTS[spotId];
+     if (s) {
+       targetEyePos.set(s.x, s.y, s.z);
+       targetEyeYaw = s.yaw;
+       targetEyePitch = s.pitch;
+     }
+   },
+
+   // 【开关海景大窗】
+   toggleWindow(){
+     isWindowOpen = !isWindowOpen;
+     targetWindowAngle = isWindowOpen ? (Math.PI / 3.2) : 0;
+     return isWindowOpen;
+   },
+   getWindowOpen(){ return isWindowOpen; },
+
+   // 【拨动机械八音盒】
+   triggerMusicBox(){
+     windingSpinTime = 2.4;
+   },
+
+   // 重置回第一人称舒适视角
+   resetView(){
+     targetEyePos.set(defaultEye.x, defaultEye.y, defaultEye.z);
+     targetEyeYaw = defaultOrientation.yaw;
+     targetEyePitch = defaultOrientation.pitch;
+     targetFov = defaultOrientation.fov;
+   },
+
+   render(renderer,time){
+    windowView.render(renderer,time);
+    camera.aspect = innerWidth / innerHeight;
+
+    // 丝滑阻尼插值
+    eyePos.lerp(targetEyePos, .18);
+    eyeYaw += (targetEyeYaw - eyeYaw) * .22;
+    eyePitch += (targetEyePitch - eyePitch) * .22;
+    currentFov += (targetFov - currentFov) * .20;
+    camera.fov = currentFov;
+    camera.updateProjectionMatrix();
+
+    camera.position.copy(eyePos);
+    const lookTarget = new THREE.Vector3(
+      camera.position.x - Math.sin(eyeYaw) * Math.cos(eyePitch),
+      camera.position.y + Math.sin(eyePitch),
+      camera.position.z - Math.cos(eyeYaw) * Math.cos(eyePitch)
+    );
+    camera.lookAt(lookTarget);
+
+    // ☕ 咖啡杯袅袅热气动态
+    for(const p of steamParticles){
+      p.age += 0.024;
+      if(p.age > p.maxAge){
+        p.age = 0;
+        p.angle = Math.random() * Math.PI * 2;
+      }
+      const t = p.age / p.maxAge;
+      const curY = t * 0.52;
+      const sway = Math.sin(time * 2.5 + p.angle) * 0.045 * t;
+      p.sprite.position.set(sway, curY, Math.cos(time * 2.0 + p.angle) * 0.035 * t);
+      const s = THREE.MathUtils.lerp(0.06, 0.25, t);
+      p.sprite.scale.set(s, s, 1);
+      p.sprite.material.opacity = Math.sin(t * Math.PI) * 0.36;
+    }
+
+    // 🎵 八音盒发条旋转动态
+    if(windingSpinTime > 0){
+      windingPivot.rotation.x += 0.28;
+      windingSpinTime -= 0.016;
+    }
+
+    // 🪟 开窗角度与窗帘摆动联动
+    windowAngle += (targetWindowAngle - windowAngle) * 0.12;
+    windowLeftHinge.rotation.y = -windowAngle;
+    windowRightHinge.rotation.y = windowAngle;
+    const curSwayAmp = isWindowOpen ? 0.054 : 0.018;
+    const curSwaySpeed = isWindowOpen ? 1.5 : 0.65;
+    for(let i=0;i<curtains.length;i++)curtains[i].rotation.y=Math.sin(time*curSwaySpeed+i)*curSwayAmp;
+
+    renderer.render(scene,camera);
+
+    const now=performance.now();measuredFrames++;if(now-measureStart>=1000){frameRate=measuredFrames*1000/(now-measureStart);measureStart=now;measuredFrames=0;}
+   },
+   get stats(){return {windowCpuMs:windowView.cpuMs,windowGpuMs:windowView.gpuMs,windowCalls:windowView.drawCalls,windowTriangles:windowView.triangles,windowRenders:windowView.renders,roomFps:frameRate,roomCalls:6+batches.size+frames.length*3};}
+  };
  }
-
- function update(gift){
-  revision++;const current=revision;measureStart=performance.now();measuredFrames=0;
-  const sea=gift.theme==='sea';palette.wall.color.set(sea?'#dce6dc':'#e9deca');palette.panel.color.set(sea?'#94b2a5':'#98a98c');
-  frames.forEach((photo,i)=>{if(photo.material.map&&!placeholders.includes(photo.material.map))photo.material.map.dispose();photo.material.map=placeholders[i];photo.material.color.set('#ffffff');photo.material.needsUpdate=true;photo.scale.set(1,1,1);});
-  for(const entry of gift.photos)loader.load(entry.src,texture=>{
-   if(current!==revision){texture.dispose();return;}texture.colorSpace=THREE.SRGBColorSpace;
-   const photo=frames[entry.slot],aspect=texture.image.width/texture.image.height,w=photo.userData.width,h=photo.userData.height,fit=Math.min(w/aspect,h);
-   photo.material.map=texture;photo.scale.set(aspect*fit/w,fit/h,1);photo.material.needsUpdate=true;
-  });
- }
-
- return {
-  update,windowView,
-  pick:hotspot,
-
-  // 【第一人称全景环视】拖拽转动视角（360度水平无死角 + 俯仰角仰望/低头）
-  orbit(dx,dy){
-    targetEyeYaw -= dx * .0042;
-    targetEyePitch = THREE.MathUtils.clamp(targetEyePitch + dy * .0035, -1.18, 1.18);
-  },
-
-  // 【第一人称视场角微调】滚轮/双指捏合变焦缩放
-  zoom(delta){
-    targetFov = THREE.MathUtils.clamp(targetFov + delta * .045, 52, 86);
-  },
-
-  // 【第一人称水平平移/挪步】
-  pan(dx,dy){
-    const step = .0038;
-    const rightX = Math.cos(targetEyeYaw);
-    const rightZ = Math.sin(targetEyeYaw);
-    targetEyePos.x -= rightX * dx * step;
-    targetEyePos.z -= rightZ * dx * step;
-    constrainEye();
-  },
-
-  // 【第一人称移动行走】WASD / 方向键在屋内自如行走
-  move(keys,dt){
-    const forward = (keys.has('KeyW')||keys.has('ArrowUp')?1:0)-(keys.has('KeyS')||keys.has('ArrowDown')?1:0);
-    const strafe = (keys.has('KeyD')||keys.has('ArrowRight')?1:0)-(keys.has('KeyA')||keys.has('ArrowLeft')?1:0);
-    if (!forward && !strafe) return;
-    const step = 2.4 * dt;
-    const fwdX = -Math.sin(targetEyeYaw);
-    const fwdZ = -Math.cos(targetEyeYaw);
-    const rightX = Math.cos(targetEyeYaw);
-    const rightZ = -Math.sin(targetEyeYaw);
-    targetEyePos.x += (fwdX * forward + rightX * strafe) * step;
-    targetEyePos.z += (fwdZ * forward + rightZ * strafe) * step;
-    constrainEye();
-  },
-
-  // 重置回第一人称舒适视角
-  resetView(){
-    targetEyePos.set(defaultEye.x, defaultEye.y, defaultEye.z);
-    targetEyeYaw = defaultOrientation.yaw;
-    targetEyePitch = defaultOrientation.pitch;
-    targetFov = defaultOrientation.fov;
-  },
-
-  render(renderer,time){
-   windowView.render(renderer,time);
-   camera.aspect = innerWidth / innerHeight;
-
-   // 丝滑阻尼插值
-   eyePos.lerp(targetEyePos, .18);
-   eyeYaw += (targetEyeYaw - eyeYaw) * .22;
-   eyePitch += (targetEyePitch - eyePitch) * .22;
-   currentFov += (targetFov - currentFov) * .20;
-   camera.fov = currentFov;
-   camera.updateProjectionMatrix();
-
-   camera.position.copy(eyePos);
-   const lookTarget = new THREE.Vector3(
-     camera.position.x - Math.sin(eyeYaw) * Math.cos(eyePitch),
-     camera.position.y + Math.sin(eyePitch),
-     camera.position.z - Math.cos(eyeYaw) * Math.cos(eyePitch)
-   );
-   camera.lookAt(lookTarget);
-
-   for(let i=0;i<curtains.length;i++)curtains[i].rotation.y=Math.sin(time*.65+i)*.018;
-   renderer.render(scene,camera);
-
-   const now=performance.now();measuredFrames++;if(now-measureStart>=1000){frameRate=measuredFrames*1000/(now-measureStart);measureStart=now;measuredFrames=0;}
-  },
-  get stats(){return {windowCpuMs:windowView.cpuMs,windowGpuMs:windowView.gpuMs,windowCalls:windowView.drawCalls,windowTriangles:windowView.triangles,windowRenders:windowView.renders,roomFps:frameRate,roomCalls:6+batches.size+frames.length*3};}
- };
-}
-

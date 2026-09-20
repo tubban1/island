@@ -16,6 +16,11 @@ test('gift validation preserves Unicode, rejects malformed photos and duplicate 
  const photo={slot:0,caption:'我们的海',src:'data:image/jpeg;base64,/9j/2Q=='};
  assert.equal(validateGift({...gift,photos:[photo]}).photos[0].caption,'我们的海');
  assert.throws(()=>validateGift({...gift,photos:[photo,photo]}));
+ const ext=validateGift({...gift,anniversaryDate:'2024-05-20',ambient:['waves','invalid','breeze'],paperStyle:'watercolor',reply:{content:'回信内容',sender:'TA'}});
+ assert.equal(ext.anniversaryDate,'2024-05-20');
+ assert.deepEqual(ext.ambient,['waves','breeze']);
+ assert.equal(ext.paperStyle,'watercolor');
+ assert.equal(ext.reply.content,'回信内容');
 });
 test('each difficulty has a navigable route from mainland to berth',()=>{
  assert.ok(canSail(START.x,START.z));assert.ok(canSail(ARRIVAL.x,ARRIVAL.z));
@@ -37,6 +42,13 @@ test('API saves immutable independent gifts and reads them after handler restart
   const a=await post(gift);assert.equal(a.status,201);const {id}=await a.json();assert.match(id,/^[A-Za-z0-9_-]{32}$/);
   const b=await post({...gift,recipient:'朋友 B'});assert.notEqual((await b.json()).id,id);
   handler=giftApi({directory});const read=await fetch(base+'/'+id);assert.equal(read.headers.get('cache-control'),'no-store');assert.equal((await read.json()).recipient,'小满');
+
+  // 测试受礼者漂流瓶回信接口
+  const replyRes=await fetch(`${base}?action=reply&id=${id}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({reply:{content:'回信：收到海风的信了！',sender:'小满'}})});
+  assert.equal(replyRes.status,200);
+  const updatedGift=await (await fetch(base+'/'+id)).json();
+  assert.equal(updatedGift.reply?.content,'回信：收到海风的信了！');
+
   assert.equal((await post({...gift,photos:[{src:'bad'}]})).status,400);
   assert.equal((await fetch(base+'/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa')).status,404);
   assert.equal((await fetch(base+'/'+id,{method:'DELETE'})).status,404);

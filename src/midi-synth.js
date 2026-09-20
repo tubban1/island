@@ -92,11 +92,15 @@ class MiniSynth {
     this.ctx = null;
     this.masterGain = null;
     this.waveGain = null;
+    this.breezeGain = null;
     this.isPlaying = false;
+    this.isWindowOpen = false;
     this.currentTrackId = 'music_box';
+    this.ambientTracks = ['waves', 'breeze'];
     this.loopTimer = null;
     this.scheduledNodes = [];
     this.waveNodes = [];
+    this.breezeNodes = [];
   }
 
   init() {
@@ -109,10 +113,15 @@ class MiniSynth {
       this.masterGain.connect(this.ctx.destination);
 
       this.waveGain = this.ctx.createGain();
-      this.waveGain.gain.setValueAtTime(0.12, this.ctx.currentTime);
+      this.waveGain.gain.setValueAtTime(0.10, this.ctx.currentTime);
       this.waveGain.connect(this.ctx.destination);
 
+      this.breezeGain = this.ctx.createGain();
+      this.breezeGain.gain.setValueAtTime(0.06, this.ctx.currentTime);
+      this.breezeGain.connect(this.ctx.destination);
+
       this.initOceanWaves();
+      this.initBreeze();
     }
     if (this.ctx && this.ctx.state === 'suspended') {
       this.ctx.resume().catch(() => {});
@@ -161,9 +170,133 @@ class MiniSynth {
       lfo.start(0);
 
       this.waveNodes.push(whiteNoise, lfo, filter, lfoGain);
+      this.waveFilter = filter;
     } catch (e) {
       console.warn('海浪音初始化失败', e);
     }
+  }
+
+  // 窗外轻柔微风吹拂音合成（带通滤波 + 极低频风速涌动）
+  initBreeze() {
+    if (!this.ctx || this.breezeNodes.length > 0) return;
+    try {
+      const bufferSize = this.ctx.sampleRate * 4;
+      const noiseBuffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+      const output = noiseBuffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) {
+        output[i] = (Math.random() * 2 - 1) * 0.035;
+      }
+
+      const noise = this.ctx.createBufferSource();
+      noise.buffer = noiseBuffer;
+      noise.loop = true;
+
+      const bandpass = this.ctx.createBiquadFilter();
+      bandpass.type = 'bandpass';
+      bandpass.frequency.setValueAtTime(460, this.ctx.currentTime);
+      bandpass.Q.setValueAtTime(1.1, this.ctx.currentTime);
+
+      const lfo = this.ctx.createOscillator();
+      lfo.frequency.setValueAtTime(0.08, this.ctx.currentTime); // 约 12 秒缓风起伏
+      const lfoGain = this.ctx.createGain();
+      lfoGain.gain.setValueAtTime(150, this.ctx.currentTime);
+      lfo.connect(lfoGain);
+      lfoGain.connect(bandpass.frequency);
+
+      noise.connect(bandpass);
+      bandpass.connect(this.breezeGain);
+
+      noise.start(0);
+      lfo.start(0);
+
+      this.breezeNodes.push(noise, lfo, bandpass, lfoGain);
+      this.breezeFilter = bandpass;
+    } catch (e) {
+      console.warn('微风音初始化失败', e);
+    }
+  }
+
+  // 开窗吹海风状态联动：推开窗户时，海浪与微风更加通透清脆
+  setWindowOpen(isOpen) {
+    this.isWindowOpen = isOpen;
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+    const waveVol = this.ambientTracks.includes('waves') ? (isOpen ? 0.26 : 0.10) : 0;
+    const breezeVol = this.ambientTracks.includes('breeze') ? (isOpen ? 0.16 : 0.06) : 0;
+
+    if (this.waveGain) {
+      this.waveGain.gain.cancelScheduledValues(now);
+      this.waveGain.gain.linearRampToValueAtTime(waveVol, now + 0.8);
+    }
+    if (this.breezeGain) {
+      this.breezeGain.gain.cancelScheduledValues(now);
+      this.breezeGain.gain.linearRampToValueAtTime(breezeVol, now + 0.8);
+    }
+    if (this.waveFilter) {
+      this.waveFilter.frequency.cancelScheduledValues(now);
+      this.waveFilter.frequency.linearRampToValueAtTime(isOpen ? 1100 : 360, now + 0.8);
+    }
+  }
+
+  // 设置启用的多选环境音（如 ['waves', 'breeze']）
+  setAmbient(tracks = ['waves', 'breeze']) {
+    this.ambientTracks = Array.isArray(tracks) ? tracks : ['waves', 'breeze'];
+    this.setWindowOpen(this.isWindowOpen);
+  }
+
+  // 纯程序化木地板轻柔脚步声（正弦低频轻击 + 微弱高频摩擦）
+  playFootstep() {
+    if (!this.ctx || this.ctx.state !== 'running') return;
+    try {
+      const now = this.ctx.currentTime;
+      // 木质微沉击（65Hz-90Hz 随机浮动）
+      const thud = this.ctx.createOscillator();
+      const thudGain = this.ctx.createGain();
+      const baseFreq = 72 + (Math.random() - 0.5) * 16;
+      thud.type = 'sine';
+      thud.frequency.setValueAtTime(baseFreq, now);
+      thud.frequency.exponentialRampToValueAtTime(baseFreq * 0.5, now + 0.05);
+
+      thudGain.gain.setValueAtTime(0.06, now);
+      thudGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.05);
+
+      thud.connect(thudGain);
+      thudGain.connect(this.masterGain);
+      thud.start(now);
+      thud.stop(now + 0.06);
+
+      // 木板微弱高频踏地声
+      const buf = this.ctx.createBuffer(1, Math.floor(this.ctx.sampleRate * 0.025), this.ctx.sampleRate);
+      const data = buf.getChannelData(0);
+      for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * 0.02;
+      const noise = this.ctx.createBufferSource();
+      noise.buffer = buf;
+      const filter = this.ctx.createBiquadFilter();
+      filter.type = 'bandpass';
+      filter.frequency.setValueAtTime(700 + Math.random() * 200, now);
+      noise.connect(filter);
+      filter.connect(this.masterGain);
+      noise.start(now);
+    } catch (e) {}
+  }
+
+  // 机械八音盒发条旋转拨动音
+  playChimeTink() {
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+    const notes = [1318.51, 1567.98, 2093.0]; // E6, G6, C7
+    notes.forEach((f, idx) => {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(f, now + idx * 0.04);
+      gain.gain.setValueAtTime(0.08, now + idx * 0.04);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + idx * 0.04 + 0.18);
+      osc.connect(gain);
+      gain.connect(this.masterGain);
+      osc.start(now + idx * 0.04);
+      osc.stop(now + idx * 0.04 + 0.2);
+    });
   }
 
   playNote(freq, startTime, duration, instrument = 'bell') {
