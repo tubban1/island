@@ -1518,7 +1518,7 @@ export function createGiftGame({scene, boat, keys, onIslandTitleChange}) {
       else if (hit?.action === 'window') {
         const isOpen = room.toggleWindow();
         synth.setWindowOpen(isOpen);
-        toast(isOpen ? '推开了木窗，海风轻拂而来…' : '轻轻合上了木窗。');
+        toast(isOpen ? '完全推开了木窗，清爽海风扑面而来…' : '轻轻合上了木窗。');
       } else if (hit?.action === 'calendar') {
         openCalendar();
       } else if (hit && Number.isInteger(hit.slot)) {

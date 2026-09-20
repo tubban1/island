@@ -129,25 +129,25 @@ export function createMemoryRoom(exterior){
  box(10,.14,.12,0,.16,-3.67,palette.cream);box(.12,.14,7.8,-4.79,.16,.1,palette.cream);
  box(10,.18,.27,0,4.7,-3.74,palette.oak);box(.27,.18,8,-4.86,4.7,.1,palette.oak);
 
- // 🪟 面海大窗与可推开窗扇
- const windowMaterial=new THREE.MeshBasicMaterial({map:windowView.texture});
- const windowMesh=new THREE.Mesh(new THREE.PlaneGeometry(4.8,3.5),windowMaterial);windowMesh.position.set(2.57,2.82,-5.1);group.add(windowMesh);
- for(const x of [.67,4.47]){box(.13,2.9,.20,x,2.82,-3.74,palette.cream);box(.055,2.65,.04,x+(x<2? .1:-.1),2.82,-3.60,palette.oak);}
- for(const y of [1.40,4.23])box(3.94,.14,.20,2.57,y,-3.74,palette.cream);
- box(4.2,.14,.48,2.57,1.34,-3.58,palette.oak);box(.055,2.69,.11,2.57,2.82,-3.61,palette.cream);box(3.67,.055,.11,2.57,2.68,-3.61,palette.cream);
- beam([.18,4.45,-3.37],[4.95,4.45,-3.37],.035,palette.brass);sphere(.075,.14,4.45,-3.37,palette.brass);sphere(.075,4.99,4.45,-3.37,palette.brass);
+  // 🪟 面海大窗与可推开窗扇
+  const windowMaterial=new THREE.MeshBasicMaterial({map:windowView.texture});
+  const windowMesh=new THREE.Mesh(new THREE.PlaneGeometry(5.8,4.2),windowMaterial);windowMesh.position.set(2.57,2.82,-5.7);group.add(windowMesh);
+  for(const x of [.67,4.47]){box(.13,2.9,.20,x,2.82,-3.74,palette.cream);box(.055,2.65,.04,x+(x<2? .1:-.1),2.82,-3.60,palette.oak);}
+  for(const y of [1.40,4.23])box(3.94,.14,.20,2.57,y,-3.74,palette.cream);
+  box(4.2,.14,.48,2.57,1.34,-3.58,palette.oak);
+  beam([.18,4.45,-3.37],[4.95,4.45,-3.37],.035,palette.brass);sphere(.075,.14,4.45,-3.37,palette.brass);sphere(.075,4.99,4.45,-3.37,palette.brass);
 
-  // 左右开合活动窗扇（推开向外开，拥抱海风）
+  // 左右开合活动窗扇（推开完全向外开，拥抱海风）
   let isWindowOpen=false,windowAngle=0,targetWindowAngle=0;
   const windowLeftHinge=new THREE.Group();windowLeftHinge.position.set(.76,2.82,-3.66);group.add(windowLeftHinge);
-  const leftCasement=new THREE.Mesh(new THREE.BoxGeometry(1.78,2.62,.035),mat('#f4ebd9',{roughness:.65}));
-  leftCasement.position.set(.89,0,0);leftCasement.userData={action:'window',title:'推开海景大窗'};windowLeftHinge.add(leftCasement);
-  const leftHandle=new THREE.Mesh(new THREE.CylinderGeometry(.01,.01,.14,8),palette.brass);leftHandle.position.set(1.72,0,.025);leftHandle.userData={action:'window',title:'推开海景大窗'};windowLeftHinge.add(leftHandle);
+  const leftCasement=new THREE.Mesh(new THREE.BoxGeometry(1.81,2.62,.035),mat('#f4ebd9',{roughness:.65}));
+  leftCasement.position.set(.905,0,0);leftCasement.userData={action:'window',title:'推开海景大窗'};windowLeftHinge.add(leftCasement);
+  const leftHandle=new THREE.Mesh(new THREE.CylinderGeometry(.01,.01,.14,8),palette.brass);leftHandle.position.set(1.75,0,.025);leftHandle.userData={action:'window',title:'推开海景大窗'};windowLeftHinge.add(leftHandle);
 
   const windowRightHinge=new THREE.Group();windowRightHinge.position.set(4.38,2.82,-3.66);group.add(windowRightHinge);
-  const rightCasement=new THREE.Mesh(new THREE.BoxGeometry(1.78,2.62,.035),mat('#f4ebd9',{roughness:.65}));
-  rightCasement.position.set(-.89,0,0);rightCasement.userData={action:'window',title:'推开海景大窗'};windowRightHinge.add(rightCasement);
-  const rightHandle=new THREE.Mesh(new THREE.CylinderGeometry(.01,.01,.14,8),palette.brass);rightHandle.position.set(-1.72,0,.025);rightHandle.userData={action:'window',title:'推开海景大窗'};windowRightHinge.add(rightHandle);
+  const rightCasement=new THREE.Mesh(new THREE.BoxGeometry(1.81,2.62,.035),mat('#f4ebd9',{roughness:.65}));
+  rightCasement.position.set(-.905,0,0);rightCasement.userData={action:'window',title:'推开海景大窗'};windowRightHinge.add(rightCasement);
+  const rightHandle=new THREE.Mesh(new THREE.CylinderGeometry(.01,.01,.14,8),palette.brass);rightHandle.position.set(-1.75,0,.025);rightHandle.userData={action:'window',title:'推开海景大窗'};windowRightHinge.add(rightHandle);
 
   // 窗户点击交互热点
   const windowHotspot=new THREE.Mesh(new THREE.PlaneGeometry(3.6,2.6),new THREE.MeshBasicMaterial({transparent:true,opacity:0,depthWrite:false,side:THREE.DoubleSide}));
@@ -411,7 +411,7 @@ export function createMemoryRoom(exterior){
    // 【开关海景大窗】
    toggleWindow(){
      isWindowOpen = !isWindowOpen;
-     targetWindowAngle = isWindowOpen ? (Math.PI / 3.0) : 0;
+     targetWindowAngle = isWindowOpen ? (Math.PI * 0.495) : 0;
      return isWindowOpen;
    },
    getWindowOpen(){ return isWindowOpen; },
@@ -460,12 +460,12 @@ export function createMemoryRoom(exterior){
       p.sprite.material.opacity = Math.sin(t * Math.PI) * 0.36;
     }
 
-    // 🪟 开窗角度与窗帘摆动联动（窗户向外推开）
+    // 🪟 开窗角度与窗帘摆动联动（窗户向外完全推开）
     windowAngle += (targetWindowAngle - windowAngle) * 0.12;
     windowLeftHinge.rotation.y = windowAngle;
     windowRightHinge.rotation.y = -windowAngle;
-    const curSwayAmp = isWindowOpen ? 0.054 : 0.018;
-    const curSwaySpeed = isWindowOpen ? 1.5 : 0.65;
+    const curSwayAmp = isWindowOpen ? 0.08 : 0.018;
+    const curSwaySpeed = isWindowOpen ? 1.8 : 0.65;
     for(let i=0;i<curtains.length;i++)curtains[i].rotation.y=Math.sin(time*curSwaySpeed+i)*curSwayAmp;
 
     renderer.render(scene,camera);
