@@ -1,0 +1,20 @@
+{
+  "name": "atoll-high-fidelity-reconstruction",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "vite build",
+    "preview": "vite preview --host 0.0.0.0",
+    "test": "node tests/fish.test.js && node tests/navigation.test.js && node tests/turtle.test.js && node --test tests/gift.test.js",
+    "start": "node server/start.js"
+  },
+  "dependencies": {
+    "postgres": "^3.4.7",
+    "three": "0.180.0"
+  },
+  "devDependencies": {
+    "vite": "7.1.5"
+  }
+}
