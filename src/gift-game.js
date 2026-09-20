@@ -106,13 +106,12 @@ export function createGiftGame({scene, boat, keys, onIslandTitleChange}) {
   </div>
 
   <div id="sail-controls" hidden>
-    <div class="sail-help">点击海面驶向那里 · WASD / 方向键驾驶 · 空格停船</div>
-    <div class="dpad" aria-label="驾驶控制">
-      <button data-key="ArrowUp" aria-label="前进">↑</button>
-      <button data-key="ArrowLeft" aria-label="左转">↶</button>
-      <button data-key="Space" aria-label="停船">■</button>
-      <button data-key="ArrowRight" aria-label="右转">↷</button>
-      <button data-key="ArrowDown" aria-label="后退">↓</button>
+    <div class="sail-help">点击海面驶向那里 · 拖拽圆盘驾驶 · 空格停船</div>
+    <div id="steering-wheel" class="steering-wheel" aria-label="方向盘驾驶圆盘" role="slider">
+      <div class="wheel-ring"></div>
+      <div id="wheel-knob" class="wheel-knob">
+        <span class="wheel-icon">☸</span>
+      </div>
     </div>
   </div>
 
@@ -870,21 +869,63 @@ export function createGiftGame({scene, boat, keys, onIslandTitleChange}) {
     }
   };
 
-  root.querySelectorAll('[data-key]').forEach(button => {
-    const release = () => keys.delete(button.dataset.key);
-    button.onpointerdown = e => {
-      e.preventDefault();
-      button.setPointerCapture(e.pointerId);
-      target = null;
-      if (button.dataset.key === 'Space') {
-        speed = 0;
-        keys.clear();
-      } else keys.add(button.dataset.key);
+  let joyThrottle = 0, joyTurn = 0;
+  const wheel = $('steering-wheel');
+  const knob = $('wheel-knob');
+  if (wheel && knob) {
+    let activePointerId = null;
+    const maxRadius = 34;
+
+    const updateKnob = (clientX, clientY) => {
+      const rect = wheel.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+      let dx = clientX - centerX;
+      let dy = clientY - centerY;
+      const dist = Math.hypot(dx, dy);
+      if (dist > maxRadius) {
+        dx = (dx / dist) * maxRadius;
+        dy = (dy / dist) * maxRadius;
+      }
+      knob.style.transform = `translate(${dx}px, ${dy}px)`;
+      joyTurn = -(dx / maxRadius);
+      joyThrottle = -(dy / maxRadius);
     };
-    button.onpointerup = release;
-    button.onpointercancel = release;
-    button.onlostpointercapture = release;
-  });
+
+    const resetKnob = () => {
+      activePointerId = null;
+      joyThrottle = 0;
+      joyTurn = 0;
+      knob.style.transform = 'translate(0px, 0px)';
+    };
+
+    wheel.onpointerdown = e => {
+      e.preventDefault();
+      activePointerId = e.pointerId;
+      wheel.setPointerCapture(e.pointerId);
+      target = null;
+      updateKnob(e.clientX, e.clientY);
+    };
+
+    wheel.onpointermove = e => {
+      if (activePointerId === e.pointerId) {
+        e.preventDefault();
+        target = null;
+        updateKnob(e.clientX, e.clientY);
+      }
+    };
+
+    wheel.onpointerup = e => {
+      if (activePointerId === e.pointerId) {
+        e.preventDefault();
+        try { wheel.releasePointerCapture(e.pointerId); } catch (_) {}
+        resetKnob();
+      }
+    };
+
+    wheel.onpointercancel = resetKnob;
+    wheel.onlostpointercapture = resetKnob;
+  }
 
   addEventListener('keydown', e => {
     if (document.querySelector('dialog[open]')) return;
@@ -955,8 +996,10 @@ export function createGiftGame({scene, boat, keys, onIslandTitleChange}) {
     world.update(t, state, boat);
     if (state.phase === 'sailing') {
       const config = DIFFICULTIES[state.difficulty];
-      let throttle = (keys.has('KeyW') || keys.has('ArrowUp') ? 1 : 0) - (keys.has('KeyS') || keys.has('ArrowDown') ? 1 : 0);
-      let turn = (keys.has('KeyA') || keys.has('ArrowLeft') ? 1 : 0) - (keys.has('KeyD') || keys.has('ArrowRight') ? 1 : 0);
+      let throttle = (keys.has('KeyW') || keys.has('ArrowUp') ? 1 : 0) - (keys.has('KeyS') || keys.has('ArrowDown') ? 1 : 0) + joyThrottle;
+      let turn = (keys.has('KeyA') || keys.has('ArrowLeft') ? 1 : 0) - (keys.has('KeyD') || keys.has('ArrowRight') ? 1 : 0) + joyTurn;
+      throttle = THREE.MathUtils.clamp(throttle, -1, 1);
+      turn = THREE.MathUtils.clamp(turn, -1, 1);
       if (target) {
         const distance = Math.hypot(target.x - boat.position.x, target.z - boat.position.z);
         if (distance < .6) {
@@ -989,7 +1032,7 @@ export function createGiftGame({scene, boat, keys, onIslandTitleChange}) {
         }
       }
       const distToArrival = Math.hypot(boat.position.x - ARRIVAL.x, boat.position.z - ARRIVAL.z);
-      if (distToArrival < 5.5 && state.checkpoint < config.checkpoints.length) {
+      if (distToArrival < 2.5 && state.checkpoint < config.checkpoints.length) {
         state.checkpoint = config.checkpoints.length;
         safe = {x: boat.position.x, z: boat.position.z};
         toast('已经找到小岛！驶向码头外侧，准备靠岸。');
@@ -1109,7 +1152,7 @@ export function createGiftGame({scene, boat, keys, onIslandTitleChange}) {
     },
     clickWater(hit) {
       if (state.phase === 'sailing' && !document.querySelector('dialog[open]')) {
-        if (Math.hypot(hit.x - ARRIVAL.x, hit.z - ARRIVAL.z) < 6.5) {
+        if (Math.hypot(hit.x - ARRIVAL.x, hit.z - ARRIVAL.z) < 3.5) {
           target = {x: ARRIVAL.x, z: ARRIVAL.z};
         } else {
           target = {x: hit.x, z: hit.z};

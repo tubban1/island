@@ -35,5 +35,5 @@ export function nextCheckpoint(state,position){
  return state.checkpoint;
 }
 export function canLand(state,position){
- return state.phase==='sailing'&&state.checkpoint===DIFFICULTIES[state.difficulty].checkpoints.length&&Math.hypot(position.x-ARRIVAL.x,position.z-ARRIVAL.z)<5.5;
+ return state.phase==='sailing'&&state.checkpoint===DIFFICULTIES[state.difficulty].checkpoints.length&&Math.hypot(position.x-ARRIVAL.x,position.z-ARRIVAL.z)<2.5;
 }
