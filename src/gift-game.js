@@ -213,16 +213,98 @@ export function createGiftGame({scene, boat, keys, onIslandTitleChange}) {
   </dialog>
 
   <dialog id="share-dialog" class="gift-dialog share">
-    <span class="eyebrow">YOUR ISLAND IS READY</span>
-    <h2>小岛已为 TA 准备好。</h2>
-    <p class="subtle">复制链接后，发送给 TA 即可开启专属小岛之旅。</p>
+    <div class="sheet-heading">
+      <div>
+        <span class="eyebrow">YOUR ISLAND IS READY</span>
+        <h2>小岛已为 TA 准备好。</h2>
+      </div>
+      <button type="button" class="close" id="share-dialog-close" aria-label="关闭分享">×</button>
+    </div>
+    <p class="subtle">复制链接或选择各社交平台专属分享图，发送给 TA 开启小岛之旅。</p>
     <label>专属邀请链接<input id="share-url" readonly></label>
     <p id="share-status" role="status"></p>
     <div class="button-row">
-      <button id="share-copy" class="primary">复制链接</button>
+      <button id="share-copy" class="primary">复制专属链接</button>
       <a id="share-open" class="secondary" target="_blank" rel="noopener">体验收礼流程 ↗</a>
     </div>
-    <button id="share-close" class="quiet">继续布置</button>
+
+    <div class="share-channels-title">
+      <span>各平台专属分享图与快捷分享</span>
+    </div>
+
+    <div class="share-channels-grid">
+      <!-- 微信好友 -->
+      <div class="share-channel-card">
+        <div class="share-channel-header">
+          <span class="share-channel-icon">💬</span>
+          <strong>微信好友</strong>
+          <span class="share-badge">600×600</span>
+        </div>
+        <a href="/share-wechat.jpg" target="_blank" class="share-img-thumb" title="点击查看高清微信分享图">
+          <img src="/share-wechat.jpg" alt="微信分享图" />
+          <span class="share-thumb-hover">查看大图</span>
+        </a>
+        <div class="share-channel-actions">
+          <button type="button" id="share-wechat-btn" class="channel-btn">复制微信文案</button>
+          <a href="/share-wechat.jpg" download="island-wechat.jpg" class="channel-link-btn">保存图片</a>
+        </div>
+      </div>
+
+      <!-- 微信朋友圈 -->
+      <div class="share-channel-card">
+        <div class="share-channel-header">
+          <span class="share-channel-icon">🎡</span>
+          <strong>朋友圈</strong>
+          <span class="share-badge">1080×1080</span>
+        </div>
+        <a href="/share-moments.jpg" target="_blank" class="share-img-thumb" title="点击查看朋友圈高清封面图">
+          <img src="/share-moments.jpg" alt="朋友圈分享图" />
+          <span class="share-thumb-hover">查看大图</span>
+        </a>
+        <div class="share-channel-actions">
+          <button type="button" id="share-moments-btn" class="channel-btn">复制朋友圈文案</button>
+          <a href="/share-moments.jpg" download="island-moments.jpg" class="channel-link-btn">保存图片</a>
+        </div>
+      </div>
+
+      <!-- Instagram -->
+      <div class="share-channel-card">
+        <div class="share-channel-header">
+          <span class="share-channel-icon">📸</span>
+          <strong>Instagram</strong>
+          <span class="share-badge">1:1 & 9:16</span>
+        </div>
+        <a href="/share-instagram.jpg" target="_blank" class="share-img-thumb" title="点击查看 Instagram 1:1 分享图">
+          <img src="/share-instagram.jpg" alt="Instagram 分享图" />
+          <span class="share-thumb-hover">查看大图</span>
+        </a>
+        <div class="share-channel-actions">
+          <a href="/share-instagram.jpg" download="island-instagram-feed.jpg" class="channel-link-btn">下载正方形 (1:1)</a>
+          <a href="/share-instagram-story.jpg" download="island-instagram-story.jpg" class="channel-link-btn">下载快拍 (9:16)</a>
+        </div>
+      </div>
+
+      <!-- WhatsApp -->
+      <div class="share-channel-card">
+        <div class="share-channel-header">
+          <span class="share-channel-icon">📱</span>
+          <strong>WhatsApp</strong>
+          <span class="share-badge">800×800</span>
+        </div>
+        <a href="/share-whatsapp.jpg" target="_blank" class="share-img-thumb" title="点击查看 WhatsApp 专属预览图">
+          <img src="/share-whatsapp.jpg" alt="WhatsApp 分享图" />
+          <span class="share-thumb-hover">查看大图</span>
+        </a>
+        <div class="share-channel-actions">
+          <button type="button" id="share-whatsapp-btn" class="channel-btn whatsapp-highlight">一键分享</button>
+          <a href="/share-whatsapp.jpg" download="island-whatsapp.jpg" class="channel-link-btn">保存图片</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="share-dialog-footer">
+      <button id="share-close" class="quiet">继续布置岛屿</button>
+    </div>
   </dialog>
 
   <dialog id="feedback-dialog" class="gift-dialog feedback">
@@ -814,6 +896,7 @@ export function createGiftGame({scene, boat, keys, onIslandTitleChange}) {
   };
 
   $('share-close').onclick = () => $('share-dialog').close();
+  if ($('share-dialog-close')) $('share-dialog-close').onclick = () => $('share-dialog').close();
   $('share-copy').onclick = async () => {
     try {
       await navigator.clipboard.writeText($('share-url').value);
@@ -822,6 +905,43 @@ export function createGiftGame({scene, boat, keys, onIslandTitleChange}) {
       $('share-url').select();
       text('share-status', '请按 Ctrl/Cmd+C 复制选中的链接。');
     }
+  };
+
+  const getShareTitle = () => draft.title || '留给你的一座岛';
+  const getShareUrl = () => $('share-url').value || location.href;
+
+  if ($('share-wechat-btn')) {
+    $('share-wechat-btn').onclick = async () => {
+      const shareText = `${getShareTitle()} · 送给特别的你\n在清澈见底的绿松石浅滩，吹着海风，驾驶小船，为你守护这一方宁静的小岛。\n点击开启专属小岛：${getShareUrl()}`;
+      try {
+        await navigator.clipboard.writeText(shareText);
+        text('share-status', '已复制微信专属文案！可在微信中粘贴并发送分享图。');
+        toast('已复制微信文案，可在聊天中粘贴！');
+      } catch {
+        prompt('请复制微信专属文案：', shareText);
+      }
+    };
+  }
+
+  if ($('share-moments-btn')) {
+    $('share-moments-btn').onclick = async () => {
+      const momentsText = `「${getShareTitle()}」为你守护的一方宁静小岛。🌊 驾驶小船，登岛开启属于我们的回忆小屋。\n${getShareUrl()}`;
+      try {
+        await navigator.clipboard.writeText(momentsText);
+        text('share-status', '已复制朋友圈文案！可保存上方图片后发表至朋友圈。');
+        toast('已复制朋友圈文案，可保存封面图后发布！');
+      } catch {
+        prompt('请复制朋友圈专属文案：', momentsText);
+      }
+    };
+  }
+
+  if ($('share-whatsapp-btn')) {
+    $('share-whatsapp-btn').onclick = () => {
+      const waText = `🌊 *${getShareTitle()}* · A Little Island, Just for You\n\n为你守护这一方宁静的小岛。点击开启专属小岛之旅：\n${getShareUrl()}`;
+      window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(waText)}`, '_blank', 'noopener,noreferrer');
+      text('share-status', '正在调起 WhatsApp 分享…');
+    };
   };
 
   function start() {

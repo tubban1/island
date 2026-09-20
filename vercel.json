@@ -1,0 +1,7 @@
+{
+  "cleanUrls": true,
+  "rewrites": [
+    { "source": "/gift", "destination": "/gift.html" },
+    { "source": "/gift/(.*)", "destination": "/gift.html" }
+  ]
+}
