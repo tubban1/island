@@ -68,9 +68,10 @@ export function createMemoryRoom(exterior){
   const calPin=new THREE.Mesh(new THREE.CylinderGeometry(.016,.016,.03,10),palette.brass);calPin.rotation.x=Math.PI/2;calPin.position.set(0,.39,.02);calendarGroup.add(calPin);
   const calCanvas=document.createElement('canvas');calCanvas.width=384;calCanvas.height=512;
   const calTexture=new THREE.CanvasTexture(calCanvas);
-  const calPaper=new THREE.Mesh(new THREE.PlaneGeometry(.54,.74),new THREE.MeshBasicMaterial({map:calTexture}));
-  calPaper.position.set(0,-.03,.018);calendarGroup.add(calPaper);
-  const calendarHotspot=new THREE.Mesh(new THREE.PlaneGeometry(.65,.9),new THREE.MeshBasicMaterial({transparent:true,opacity:0,depthWrite:false}));
+  const calPaper=new THREE.Mesh(new THREE.PlaneGeometry(.54,.74),new THREE.MeshBasicMaterial({map:calTexture,side:THREE.DoubleSide}));
+  calPaper.position.set(0,-.03,.018);calPaper.userData={action:'calendar',title:'纪念日挂历'};calendarGroup.add(calPaper);
+  calBacking.userData={action:'calendar',title:'纪念日挂历'};
+  const calendarHotspot=new THREE.Mesh(new THREE.PlaneGeometry(.65,.9),new THREE.MeshBasicMaterial({transparent:true,opacity:0,depthWrite:false,side:THREE.DoubleSide}));
   calendarHotspot.position.set(-1.45,2.35,3.92);calendarHotspot.rotation.y=Math.PI;calendarHotspot.userData={action:'calendar',title:'纪念日挂历'};group.add(calendarHotspot);
 
   function drawCalendar(anniversaryText,occasionTitle){
@@ -140,16 +141,16 @@ export function createMemoryRoom(exterior){
   let isWindowOpen=false,windowAngle=0,targetWindowAngle=0;
   const windowLeftHinge=new THREE.Group();windowLeftHinge.position.set(.76,2.82,-3.66);group.add(windowLeftHinge);
   const leftCasement=new THREE.Mesh(new THREE.BoxGeometry(1.78,2.62,.035),mat('#f4ebd9',{roughness:.65}));
-  leftCasement.position.set(.89,0,0);windowLeftHinge.add(leftCasement);
-  const leftHandle=new THREE.Mesh(new THREE.CylinderGeometry(.01,.01,.14,8),palette.brass);leftHandle.position.set(1.72,0,.025);windowLeftHinge.add(leftHandle);
+  leftCasement.position.set(.89,0,0);leftCasement.userData={action:'window',title:'推开海景大窗'};windowLeftHinge.add(leftCasement);
+  const leftHandle=new THREE.Mesh(new THREE.CylinderGeometry(.01,.01,.14,8),palette.brass);leftHandle.position.set(1.72,0,.025);leftHandle.userData={action:'window',title:'推开海景大窗'};windowLeftHinge.add(leftHandle);
 
   const windowRightHinge=new THREE.Group();windowRightHinge.position.set(4.38,2.82,-3.66);group.add(windowRightHinge);
   const rightCasement=new THREE.Mesh(new THREE.BoxGeometry(1.78,2.62,.035),mat('#f4ebd9',{roughness:.65}));
-  rightCasement.position.set(-.89,0,0);windowRightHinge.add(rightCasement);
-  const rightHandle=new THREE.Mesh(new THREE.CylinderGeometry(.01,.01,.14,8),palette.brass);rightHandle.position.set(-1.72,0,.025);windowRightHinge.add(rightHandle);
+  rightCasement.position.set(-.89,0,0);rightCasement.userData={action:'window',title:'推开海景大窗'};windowRightHinge.add(rightCasement);
+  const rightHandle=new THREE.Mesh(new THREE.CylinderGeometry(.01,.01,.14,8),palette.brass);rightHandle.position.set(-1.72,0,.025);rightHandle.userData={action:'window',title:'推开海景大窗'};windowRightHinge.add(rightHandle);
 
   // 窗户点击交互热点
-  const windowHotspot=new THREE.Mesh(new THREE.PlaneGeometry(3.6,2.6),new THREE.MeshBasicMaterial({transparent:true,opacity:0,depthWrite:false}));
+  const windowHotspot=new THREE.Mesh(new THREE.PlaneGeometry(3.6,2.6),new THREE.MeshBasicMaterial({transparent:true,opacity:0,depthWrite:false,side:THREE.DoubleSide}));
   windowHotspot.position.set(2.57,2.82,-3.55);windowHotspot.userData={action:'window',title:'推开海景大窗'};group.add(windowHotspot);
 
  const curtains=[];
@@ -304,7 +305,19 @@ export function createMemoryRoom(exterior){
 
   function hotspot(x,y){
     raycaster.setFromCamera(new THREE.Vector2(x,y),camera);
-    const hit=raycaster.intersectObjects([...frames,paper,envelope,letterHotspot,bottleHotspot,musicBoxHotspot,calendarHotspot,windowHotspot])[0];
+    const targets = [
+      ...frames,
+      paper,
+      envelope,
+      letterHotspot,
+      calendarHotspot,
+      calPaper,
+      calBacking,
+      windowHotspot,
+      leftCasement,
+      rightCasement
+    ].filter(Boolean);
+    const hit=raycaster.intersectObjects(targets)[0];
     return hit?hit.object.userData:null;
   }
 
