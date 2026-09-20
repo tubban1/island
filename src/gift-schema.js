@@ -14,6 +14,7 @@ export function validateGift(input){
   return value.trim();
  };
  const gift={version:1,recipient:text('recipient',40,true),sender:text('sender',40,true),title:text('title',20,true),greeting:text('greeting',180),letter:text('letter',4000,true),occasion:text('occasion',60)};
+ if(!DIFFICULTIES[input.difficulty])throw new Error('难度选项不正确。');
  gift.difficulty=input.difficulty;
  gift.theme=input.theme==='sea'?'sea':'warm';
  const validMusics=['music_box','sea_breeze','canon','starry','none'];
@@ -34,5 +35,5 @@ export function nextCheckpoint(state,position){
  return state.checkpoint;
 }
 export function canLand(state,position){
- return state.phase==='sailing'&&state.checkpoint===DIFFICULTIES[state.difficulty].checkpoints.length&&Math.hypot(position.x-ARRIVAL.x,position.z-ARRIVAL.z)<2.5;
+ return state.phase==='sailing'&&state.checkpoint===DIFFICULTIES[state.difficulty].checkpoints.length&&Math.hypot(position.x-ARRIVAL.x,position.z-ARRIVAL.z)<5.5;
 }

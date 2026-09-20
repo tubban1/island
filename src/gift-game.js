@@ -988,6 +988,12 @@ export function createGiftGame({scene, boat, keys, onIslandTitleChange}) {
           toast('前方是浅滩或码头，请绕到开阔水面。');
         }
       }
+      const distToArrival = Math.hypot(boat.position.x - ARRIVAL.x, boat.position.z - ARRIVAL.z);
+      if (distToArrival < 5.5 && state.checkpoint < config.checkpoints.length) {
+        state.checkpoint = config.checkpoints.length;
+        safe = {x: boat.position.x, z: boat.position.z};
+        toast('已经找到小岛！驶向码头外侧，准备靠岸。');
+      }
       if (canLand(state, boat.position)) {
         speed = 0;
         target = null;
@@ -1103,7 +1109,11 @@ export function createGiftGame({scene, boat, keys, onIslandTitleChange}) {
     },
     clickWater(hit) {
       if (state.phase === 'sailing' && !document.querySelector('dialog[open]')) {
-        target = {x: hit.x, z: hit.z};
+        if (Math.hypot(hit.x - ARRIVAL.x, hit.z - ARRIVAL.z) < 6.5) {
+          target = {x: ARRIVAL.x, z: ARRIVAL.z};
+        } else {
+          target = {x: hit.x, z: hit.z};
+        }
         return true;
       }
       return false;
