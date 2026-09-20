@@ -48,6 +48,10 @@ test('API saves immutable independent gifts and reads them after handler restart
   assert.equal(replyRes.status,200);
   const updatedGift=await (await fetch(base+'/'+id)).json();
   assert.equal(updatedGift.reply?.content,'回信：收到海风的信了！');
+  handler=giftApi({directory});
+  const ownerRead=await fetch(`${base}?id=${id}`);
+  assert.equal(ownerRead.status,200);
+  assert.equal((await ownerRead.json()).reply.content,'回信：收到海风的信了！');
 
   assert.equal((await post({...gift,photos:[{src:'bad'}]})).status,400);
   assert.equal((await fetch(base+'/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa')).status,404);

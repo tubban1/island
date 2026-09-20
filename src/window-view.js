@@ -2,10 +2,10 @@ import * as THREE from 'three';
 
 // Share the existing exterior scene and animation clock; no duplicated island.
 export function createWindowView(exterior,{profile=false}={}){
- const width=480,height=320;
+ const width=960,height=384;
  const target=new THREE.WebGLRenderTarget(width,height,{type:THREE.HalfFloatType,depthBuffer:true,stencilBuffer:false,generateMipmaps:false});
  const camera=new THREE.PerspectiveCamera(58,width/height,.2,95);
- camera.position.set(10.6,5.0,8.6);camera.lookAt(4.5,-.3,19.5);
+ camera.position.set(7.5,5,12);camera.lookAt(3,-4,24);
  let last=-Infinity,enabled=true,hasFrame=false,cpuMs=0,renders=0,gpuMs=null,drawCalls=0,triangles=0,extension,queries=[];
  return {
   texture:target.texture,width,height,

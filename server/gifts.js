@@ -39,8 +39,8 @@ export function giftApi({directory=process.env.GIFT_DATA_DIR||resolve('.gift-dat
      await writeFile(resolve(directory,id+'.json'),JSON.stringify({...gift,createdAt:new Date().toISOString()}),{flag:'wx',mode:0o600});
      return reply(201,{id});
     }
-    if(req.method==='GET'&&match){
-     try{return reply(200,JSON.parse(await readFile(resolve(directory,match[1]+'.json'),'utf8')));}catch(error){if(error.code==='ENOENT')return reply(404,{error:'这封邀请没有找到，请向送礼的人确认链接。'});throw error;}
+    if(req.method==='GET'&&/^[A-Za-z0-9_-]{32}$/.test(token||'')&&(match||path==='/api/gifts')){
+     try{return reply(200,JSON.parse(await readFile(resolve(directory,token+'.json'),'utf8')));}catch(error){if(error.code==='ENOENT')return reply(404,{error:'这封邀请没有找到，请向送礼的人确认链接。'});throw error;}
     }
     return reply(404,{error:'邀请地址不正确。'});
    }catch(error){console.error('Gift storage error:',error.code||error.name);if(!res.headersSent)reply(500,{error:'邀请暂时无法保存或读取，请稍后重试。'});}

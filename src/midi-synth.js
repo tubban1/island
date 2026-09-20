@@ -343,9 +343,7 @@ class MiniSynth {
     this.isPlaying = true;
 
     // 确保海浪声音量正常
-    if (this.waveGain && this.ctx) {
-      this.waveGain.gain.setValueAtTime(trackId === 'none' ? 0.22 : 0.10, this.ctx.currentTime);
-    }
+    this.setWindowOpen(this.isWindowOpen);
 
     if (trackId === 'none' || !TRACKS[trackId]) return;
 
@@ -391,6 +389,7 @@ class MiniSynth {
     if (this.waveGain && this.ctx) {
       this.waveGain.gain.setValueAtTime(0, this.ctx.currentTime);
     }
+    if(this.breezeGain&&this.ctx)this.breezeGain.gain.setValueAtTime(0,this.ctx.currentTime);
   }
 
   preview(trackId, onEnd) {
@@ -427,4 +426,3 @@ class MiniSynth {
 }
 
 export const synth = new MiniSynth();
-

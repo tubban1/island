@@ -7,3 +7,5 @@ __pycache__/
 .vercel
 .env*
 backups/
+public/assets/tiny_isometric_room.glb
+public/assets/loft_interior_6_for_free.glb

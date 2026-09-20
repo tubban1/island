@@ -7,7 +7,7 @@
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0",
-    "test": "node tests/fish.test.js && node tests/navigation.test.js && node tests/turtle.test.js && node --test tests/gift.test.js",
+    "test": "node tests/fish.test.js && node tests/navigation.test.js && node tests/turtle.test.js && node --test tests/gift.test.js tests/room-assets.test.js",
     "start": "node server/start.js"
   },
   "dependencies": {

@@ -1,0 +1,20 @@
+ISLAND — Room model credits
+
+Tiny Isometric Room — 3DECraft
+https://sketchfab.com/3DECraft
+https://sketchfab.com/3d-models/tiny-isometric-room-6db0b351424141099e30834c6115f40a
+License: Creative Commons Attribution 4.0
+https://creativecommons.org/licenses/by/4.0/
+Modifications: selected furniture extracted, textures resized, materials adjusted,
+and furnishings rearranged within the island cabin.
+
+loft interior (6) for free — dasy444
+https://sketchfab.com/dasy444
+https://sketchfab.com/3d-models/loft-interior-6-for-free-32b216c355894218a778345e9c91661d
+Source asset metadata: Sketchfab Standard License
+https://sketchfab.com/licenses
+Modifications: selected architecture and furniture retained; materials adjusted,
+window wall reconstructed, textures resized and unused geometry removed.
+
+Original supplied files are preserved. Adapted versions are loft-cabin.glb and
+tiny-furnishings.glb. Additional room geometry and interactions are project code.
