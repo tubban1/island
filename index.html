@@ -1,3 +1,79 @@
 <!doctype html>
-<html lang="zh-CN"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><meta name="theme-color" content="#176b68"/><meta name="referrer" content="no-referrer"/><title>一座岛 · 送给特别的你</title><script type="module" src="/src/main.js"></script></head>
-<body><div id="stage" aria-label="小岛场景。点击海面或使用方向键驾驶小船。"></div><div id="gift-root"></div><div id="status" class="status" role="status">正在准备小岛…</div></body></html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#176b68" />
+  <meta name="referrer" content="no-referrer" />
+  
+  <title>一座岛 · 送给特别的你</title>
+  <meta name="description" content="在清澈见底的绿松石浅滩，吹着海风，驾驶小船，为你守护这一方宁静的小岛。" />
+
+  <!-- Favicon 系列 -->
+  <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+  <link rel="manifest" href="/site.webmanifest" />
+
+  <!-- Vercel Web Analytics -->
+  <script>
+    window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
+    if (typeof window !== 'undefined' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+      var s = document.createElement('script');
+      s.defer = true;
+      s.src = '/_vercel/insights/script.js';
+      document.head.appendChild(s);
+    }
+  </script>
+
+  <!-- Open Graph 协议 (支持 WhatsApp, Instagram, Telegram, Facebook 等) -->
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="一座岛 · 送给特别的你" />
+  <meta property="og:description" content="在清澈见底的绿松石浅滩，吹着海风，驾驶小船，为你守护这一方宁静的小岛。" />
+  <meta property="og:image" content="/share-og.jpg" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:type" content="image/jpeg" />
+  <meta property="og:image:alt" content="一座岛 · 送给特别的你" />
+  <meta property="og:site_name" content="The Atoll" />
+
+  <!-- Twitter / X Cards -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="一座岛 · 送给特别的你" />
+  <meta name="twitter:description" content="在清澈见底的绿松石浅滩，吹着海风，驾驶小船，为你守护这一方宁静的小岛。" />
+  <meta name="twitter:image" content="/share-og.jpg" />
+
+  <!-- 确保分享图片绝对路径脚本 (兼容动态部署与爬虫) -->
+  <script>
+    (function() {
+      try {
+        if (typeof window !== 'undefined' && window.location && window.location.origin) {
+          var origin = window.location.origin;
+          var ogImage = document.querySelector('meta[property="og:image"]');
+          if (ogImage && ogImage.content && !ogImage.content.startsWith('http')) {
+            ogImage.content = origin + (ogImage.content.startsWith('/') ? '' : '/') + ogImage.content;
+          }
+          var twImage = document.querySelector('meta[name="twitter:image"]');
+          if (twImage && twImage.content && !twImage.content.startsWith('http')) {
+            twImage.content = origin + (twImage.content.startsWith('/') ? '' : '/') + twImage.content;
+          }
+        }
+      } catch (e) {}
+    })();
+  </script>
+
+  <script type="module" src="/src/main.js"></script>
+</head>
+<body>
+  <!-- 微信及朋友圈抓取分享图 (尺寸 500x500 大于微信 300x300 要求，正方形无黑边裁剪) -->
+  <div style="display:none;position:absolute;width:0;height:0;overflow:hidden;opacity:0;" aria-hidden="true">
+    <img src="/share-wechat.jpg" width="500" height="500" alt="一座岛 · 送给特别的你" />
+  </div>
+
+  <div id="stage" aria-label="小岛场景。点击海面或使用方向键驾驶小船。"></div>
+  <div id="gift-root"></div>
+  <div id="status" class="status" role="status">正在准备小岛…</div>
+</body>
+</html>

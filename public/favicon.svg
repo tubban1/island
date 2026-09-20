@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <radialGradient id="ocean" cx="50%" cy="50%" r="50%" fx="30%" fy="30%">
+      <stop offset="0%" stop-color="#36D5CB"/>
+      <stop offset="65%" stop-color="#149A9B"/>
+      <stop offset="100%" stop-color="#054868"/>
+    </radialGradient>
+    <linearGradient id="sand" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FFF2D0"/>
+      <stop offset="100%" stop-color="#F3CA70"/>
+    </linearGradient>
+    <linearGradient id="leaf1" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#B6EA48"/>
+      <stop offset="100%" stop-color="#45BA38"/>
+    </linearGradient>
+    <linearGradient id="leaf2" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#45BA38"/>
+      <stop offset="100%" stop-color="#247A2A"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Circular Ocean Badge with gentle border -->
+  <circle cx="32" cy="32" r="30" fill="url(#ocean)" stroke="#FFFFFF" stroke-width="2"/>
+
+  <!-- Subtle ripples / caustics -->
+  <ellipse cx="32" cy="38" rx="22" ry="11" fill="none" stroke="#FFFFFF" stroke-width="1.2" opacity="0.35"/>
+  <ellipse cx="32" cy="38" rx="16" ry="8" fill="none" stroke="#FFFFFF" stroke-width="1" opacity="0.25"/>
+
+  <!-- Golden Sand Atoll -->
+  <ellipse cx="31" cy="40" rx="18" ry="8.5" fill="url(#sand)"/>
+  
+  <!-- Little Beach House / Villa (warm terracotta roof & white wall) -->
+  <rect x="33" y="32" width="10" height="7" rx="1" fill="#FCF9F0"/>
+  <polygon points="31,32 38,26 45,32" fill="#D46A38"/>
+  <rect x="36" y="34.5" width="3" height="4.5" fill="#129E94"/>
+
+  <!-- Palm Tree -->
+  <!-- Segmented Trunk -->
+  <path d="M 22 41 Q 20 33 24 25" fill="none" stroke="#7A4D2E" stroke-width="3" stroke-linecap="round"/>
+  <!-- Palm Fronds -->
+  <path d="M 24 25 Q 15 22 13 27 Q 19 24 24 25" fill="url(#leaf1)"/>
+  <path d="M 24 25 Q 18 16 23 13 Q 22 19 24 25" fill="url(#leaf1)"/>
+  <path d="M 24 25 Q 29 16 34 18 Q 29 21 24 25" fill="url(#leaf2)"/>
+  <path d="M 24 25 Q 33 25 31 31 Q 28 26 24 25" fill="url(#leaf2)"/>
+  <circle cx="24" cy="25" r="1.8" fill="#5C3A21"/>
+
+  <!-- Little White Boat with Red Flag -->
+  <g transform="translate(13, 44) scale(0.9)">
+    <path d="M 0 3 L 3 6 L 12 6 L 15 2 L 14 0 L 2 0 Z" fill="#FAF7ED"/>
+    <path d="M 2 1 L 13 1 L 11 4 L 4 4 Z" fill="#129E94"/>
+    <line x1="12" y1="0" x2="12" y2="-4" stroke="#7A4D2E" stroke-width="0.8"/>
+    <polygon points="12,-4 16,-3 12,-2" fill="#E11D48"/>
+  </g>
+</svg>

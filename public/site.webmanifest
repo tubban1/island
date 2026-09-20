@@ -1,0 +1,20 @@
+{
+  "name": "一座岛 · 送给特别的你",
+  "short_name": "一座岛",
+  "description": "在清澈见底的绿松石浅滩，吹着海风，驾驶小船，为你守护这一方宁静的小岛。",
+  "icons": [
+    {
+      "src": "/favicon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/favicon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "theme_color": "#176b68",
+  "background_color": "#054868",
+  "display": "standalone"
+}

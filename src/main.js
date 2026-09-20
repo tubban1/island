@@ -36,7 +36,7 @@ renderer.toneMappingExposure = 1.0;
 stage.appendChild(renderer.domElement);
 
 const ORTHO = 12.9;
-const camera = new THREE.OrthographicCamera(-ORTHO,ORTHO,ORTHO,-ORTHO,0.1,180);
+const camera = new THREE.OrthographicCamera(-ORTHO,ORTHO,ORTHO,-ORTHO,0.1,500);
 camera.position.set(-13.0,25.5,19.2);
 camera.zoom = 1.0;
 camera.updateProjectionMatrix();
@@ -158,7 +158,8 @@ const waterMat=new THREE.ShaderMaterial({
     }`,
   transparent:true,depthWrite:false
 });
-const ocean=new THREE.Mesh(new THREE.PlaneGeometry(120,90,1,1),waterMat);ocean.rotation.x=-Math.PI/2;ocean.position.y=-0.18;ocean.receiveShadow=true;scene.add(ocean);
+// A large single plane keeps the sea continuous at every allowed orbit pitch/zoom.
+const ocean=new THREE.Mesh(new THREE.PlaneGeometry(600,600),waterMat);ocean.rotation.x=-Math.PI/2;ocean.position.y=-0.18;ocean.receiveShadow=true;scene.add(ocean);
 
 // Soft submerged patches that read like distant sea grass / reefs.
 function softDiscTexture(){
@@ -183,18 +184,286 @@ try {
   statusEl.classList.add('error');
   throw error;
 }
-world.traverse(o=>{if(o.isMesh){o.castShadow=!['Warm lagoon sand','Island ground','Submerged sand'].includes(o.material.name);o.receiveShadow=true;o.frustumCulled=true;applyHarbourPalette(o.material);applyUnderwater(o.material);if(o.material.name==='Warm lagoon sand')o.renderOrder=-1;o.material.shadowSide=THREE.FrontSide;o.material.flatShading=/wood|roof|rock|plaster/i.test(o.material.name);}});
+world.traverse(o=>{
+  if(o.isMesh){
+    o.castShadow=!['Warm lagoon sand','Island ground','Submerged sand'].includes(o.material.name);
+    o.receiveShadow=true;
+    o.frustumCulled=true;
+    applyHarbourPalette(o.material);
+    applyUnderwater(o.material);
+    if(o.material.name==='Warm lagoon sand')o.renderOrder=-1;
+    o.material.shadowSide=THREE.FrontSide;
+    o.material.flatShading=/wood|roof|rock|plaster/i.test(o.material.name);
+
+    // 隐藏 GLB 中旧的低精小木牌与旧信箱，避免与新招牌冲突
+    if (o.material.name === 'Dark wood' || o.material.name === 'Flag red') {
+      const pos = o.geometry.attributes.position;
+      let modified = false;
+      for (let i = 0; i < pos.count; i++) {
+        const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+        if (x > 11.5 && x < 14.3 && z > 4.4 && z < 4.85 && y > 0.05) {
+          pos.setY(i, -100);
+          modified = true;
+        }
+      }
+      if (modified) pos.needsUpdate = true;
+    }
+  }
+});
 boat.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});
 scene.add(world); scene.add(boat);
 createShoreSurf(scene,waterMat.uniforms.uTime);
 const beachLife=createBeachLife(scene,world);
 const turtle=createSeaTurtle(scene,world,applyUnderwater);
 createSeagrass(scene,world,applyUnderwater,waterMat.uniforms.uTime);
-const signCanvas=document.createElement('canvas');signCanvas.width=512;signCanvas.height=128;
-const signContext=signCanvas.getContext('2d');signContext.fillStyle='#95643e';signContext.fillRect(0,0,512,128);
-signContext.fillStyle='#fff1cd';signContext.font='bold 54px Georgia';signContext.textAlign='center';signContext.textBaseline='middle';signContext.fillText('Home Harbour',256,68);
-const signTexture=new THREE.CanvasTexture(signCanvas);signTexture.colorSpace=THREE.SRGBColorSpace;
-const harbourSign=new THREE.Mesh(new THREE.PlaneGeometry(2.48,.55),new THREE.MeshStandardMaterial({map:signTexture,roughness:.9}));harbourSign.position.set(harbourLayout.sign.x,1.2,harbourLayout.sign.z+.09);scene.add(harbourSign);
+
+// ==================== 精致海岛高清晰度木雕招牌 Canvas 材质 ====================
+const signCanvas=document.createElement('canvas');signCanvas.width=1024;signCanvas.height=380;
+const signContext=signCanvas.getContext('2d');
+const signTexture=new THREE.CanvasTexture(signCanvas);
+signTexture.colorSpace=THREE.SRGBColorSpace;
+signTexture.anisotropy=renderer.capabilities.getMaxAnisotropy();
+
+function splitTitleLines(text) {
+  if (text.includes('\n')) {
+    const parts = text.split('\n').map(p => p.trim()).filter(Boolean);
+    return parts.slice(0, 2);
+  }
+  // 8字及以内单行呈现
+  if (text.length <= 8) return [text];
+
+  // 优先在空格或标点符号处断行
+  const seps = [' ', '·', '，', ',', '/', '-'];
+  const mid = Math.floor(text.length / 2);
+  let best = -1, minDiff = Infinity;
+  for (let i = 0; i < text.length; i++) {
+    if (seps.includes(text[i])) {
+      const diff = Math.abs(i - mid);
+      if (diff < minDiff) {
+        minDiff = diff;
+        best = i;
+      }
+    }
+  }
+  if (best > 1 && best < text.length - 1 && minDiff <= 4) {
+    const l1 = text.slice(0, best).trim();
+    const l2 = text.slice(best + 1).trim();
+    if (l1 && l2) return [l1, l2];
+  }
+
+  // 无明显分隔符则中间自然分两行
+  const splitIdx = Math.ceil(text.length / 2);
+  return [text.slice(0, splitIdx).trim(), text.slice(splitIdx).trim()];
+}
+
+function renderHarbourSign(titleText) {
+  const rawTitle = (titleText || '留给你的一座岛').trim() || '留给你的一座岛';
+  const title = rawTitle.slice(0, 20); // 严格限制 20 字以内
+  const lines = splitTitleLines(title);
+  const isTwoLines = lines.length === 2;
+
+  signContext.clearRect(0, 0, 1024, 380);
+
+  // 1. 温暖海岛明亮金柚木底色（保证远景与任意光照下均鲜明通透，彻底告别暗沉发黑）
+  const grad = signContext.createLinearGradient(0, 0, 0, 380);
+  grad.addColorStop(0, '#9c6436');
+  grad.addColorStop(0.3, '#865128');
+  grad.addColorStop(0.7, '#78461f');
+  grad.addColorStop(1, '#653816');
+  signContext.fillStyle = grad;
+  signContext.fillRect(0, 0, 1024, 380);
+
+  // 2. 细腻暖金色木质纹理
+  for (let y = 0; y < 380; y += 3) {
+    const alpha = 0.10 + Math.sin(y * 0.14) * 0.05 + ((y * 7) % 11) * 0.008;
+    signContext.fillStyle = `rgba(180, 126, 76, ${alpha})`;
+    signContext.fillRect(0, y, 1024, 2);
+  }
+
+  // 3. 实木拼板横缝与立体微光
+  signContext.fillStyle = 'rgba(20, 10, 4, 0.78)';
+  signContext.fillRect(0, 124, 1024, 4);
+  signContext.fillRect(0, 254, 1024, 4);
+  signContext.fillStyle = 'rgba(255, 238, 195, 0.25)';
+  signContext.fillRect(0, 128, 1024, 2);
+  signContext.fillRect(0, 258, 1024, 2);
+
+  // 4. 外圈明亮黄铜金线边框与圆角
+  signContext.strokeStyle = '#fcd982';
+  signContext.lineWidth = 8;
+  if (signContext.roundRect) {
+    signContext.beginPath();
+    signContext.roundRect(16, 14, 992, 352, 18);
+    signContext.stroke();
+
+    // 内圈细金线
+    signContext.strokeStyle = 'rgba(252, 217, 130, 0.6)';
+    signContext.lineWidth = 3;
+    signContext.beginPath();
+    signContext.roundRect(28, 26, 968, 328, 12);
+    signContext.stroke();
+  } else {
+    signContext.strokeRect(16, 14, 992, 352);
+  }
+
+  // 5. 四角黄铜固定铆钉与立体高光
+  const rivets = [[40, 38], [984, 38], [40, 342], [984, 342]];
+  for (const [rx, ry] of rivets) {
+    signContext.beginPath();
+    signContext.arc(rx, ry, 9.5, 0, Math.PI * 2);
+    signContext.fillStyle = '#ffdf80';
+    signContext.fill();
+    signContext.strokeStyle = '#4e3314';
+    signContext.lineWidth = 2.5;
+    signContext.stroke();
+
+    signContext.beginPath();
+    signContext.arc(rx - 2.5, ry - 2.5, 3, 0, Math.PI * 2);
+    signContext.fillStyle = '#ffffff';
+    signContext.fill();
+  }
+
+  signContext.textAlign = 'center';
+  signContext.textBaseline = 'middle';
+
+  // 6. 顶部精致小标
+  signContext.font = 'bold 28px Georgia, "PingFang SC", serif';
+  signContext.fillStyle = 'rgba(20, 10, 4, 0.9)';
+  signContext.fillText('✦ HOME HARBOUR ✦', 512 + 1.5, 54 + 1.5);
+  signContext.fillStyle = '#fed780';
+  signContext.fillText('✦ HOME HARBOUR ✦', 512, 54);
+
+  // 7. 岛屿名字：支持最多 2 行大字排版，单行大号，两行依然清晰醒目！
+  let fontSize = isTwoLines ? 92 : 116;
+  const maxTextWidth = 920;
+  signContext.font = `bold ${fontSize}px "PingFang SC", "Songti SC", "Noto Serif SC", "Georgia", sans-serif`;
+  for (const line of lines) {
+    while (signContext.measureText(line).width > maxTextWidth && fontSize > 40) {
+      fontSize -= 3;
+      signContext.font = `bold ${fontSize}px "PingFang SC", "Songti SC", "Noto Serif SC", "Georgia", sans-serif`;
+    }
+  }
+
+  // 绘制 1 或 2 行文字
+  lines.forEach((line, idx) => {
+    const y = isTwoLines ? (154 + idx * 116) : 216;
+
+    // 多重重度立体阴刻深影，确保在远景下轮廓极度清晰
+    signContext.fillStyle = 'rgba(10, 4, 2, 0.98)';
+    signContext.fillText(line, 512 + 3.5, y + 4.5);
+    signContext.fillText(line, 512 - 1.5, y + 4.5);
+    signContext.fillText(line, 512 + 3.5, y - 1.5);
+    signContext.fillText(line, 512 - 1.5, y - 1.5);
+
+    // 主文字高亮象牙暖白金
+    signContext.fillStyle = '#fffdf2';
+    signContext.fillText(line, 512, y);
+  });
+
+  signTexture.needsUpdate = true;
+}
+
+renderHarbourSign('留给你的一座岛');
+
+// ==================== 移至沙滩红框位置的超清晰动态 3D 招牌组 ====================
+const signGroup = new THREE.Group();
+signGroup.position.set(harbourLayout.sign.x, 0.04, harbourLayout.sign.z);
+signGroup.rotation.y = -0.12;
+scene.add(signGroup);
+
+const woodPostMat = new THREE.MeshStandardMaterial({color: 0x4d3018, roughness: 0.88});
+const brassMat = new THREE.MeshStandardMaterial({color: 0xd4af37, metalness: 0.6, roughness: 0.35});
+
+// 左右两根粗实木立柱与柱头黄铜盖帽
+for (const px of [-1.80, 1.80]) {
+  const post = new THREE.Mesh(new THREE.BoxGeometry(0.14, 2.35, 0.14), woodPostMat);
+  post.position.set(px, 1.17, 0);
+  post.castShadow = true;
+  post.receiveShadow = true;
+  signGroup.add(post);
+
+  const cap = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.06, 0.18), brassMat);
+  cap.position.set(px, 2.36, 0);
+  signGroup.add(cap);
+}
+
+// 顶部实木横梁（连接两立柱）
+const topBeam = new THREE.Mesh(new THREE.BoxGeometry(3.90, 0.10, 0.10), woodPostMat);
+topBeam.position.set(0, 2.25, 0);
+topBeam.castShadow = true;
+signGroup.add(topBeam);
+
+// 黄铜悬挂吊环
+for (const rx of [-1.25, 1.25]) {
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.05, 0.015, 8, 16), brassMat);
+  ring.position.set(rx, 2.18, 0);
+  signGroup.add(ring);
+}
+
+// 动态微风摆动组（以顶部吊点为轴心，微仰角正对俯视相机）
+const signBoardGroup = new THREE.Group();
+signBoardGroup.position.set(0, 2.14, 0);
+signGroup.add(signBoardGroup);
+
+// 招牌实木背板（厚实饱满）
+const signBoardGeo = new THREE.BoxGeometry(4.68, 1.62, 0.14);
+const signBoardMat = new THREE.MeshStandardMaterial({color: 0x5a381c, roughness: 0.85});
+const signBoard = new THREE.Mesh(signBoardGeo, signBoardMat);
+signBoard.position.set(0, -0.72, 0);
+signBoard.castShadow = true;
+signBoard.receiveShadow = true;
+signBoardGroup.add(signBoard);
+
+// 招牌正面面板：使用 MeshBasicMaterial，不受场景后向阳光阴影限制，色彩永远明亮、文字清晰可见！
+const signPlateGeo = new THREE.PlaneGeometry(4.52, 1.50);
+const signPlateMat = new THREE.MeshBasicMaterial({map: signTexture, side: THREE.FrontSide});
+const harbourSign = new THREE.Mesh(signPlateGeo, signPlateMat);
+harbourSign.position.set(0, -0.72, 0.075);
+signBoardGroup.add(harbourSign);
+
+// 左侧立柱挂载的红色小信箱（带金色小旗）
+const mailboxGroup = new THREE.Group();
+mailboxGroup.position.set(-1.98, 0.82, 0.10);
+const mbBody = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.32, 0.36), new THREE.MeshStandardMaterial({color: 0xa83434, roughness: 0.65}));
+mbBody.castShadow = true;
+mailboxGroup.add(mbBody);
+const mbFlag = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.16, 0.08), new THREE.MeshStandardMaterial({color: 0xdca832, roughness: 0.4}));
+mbFlag.position.set(-0.14, 0.08, 0.10);
+mailboxGroup.add(mbFlag);
+signGroup.add(mailboxGroup);
+
+// 右侧立柱挂载的复古暖光壁灯
+const lanternGroup = new THREE.Group();
+lanternGroup.position.set(1.96, 1.65, 0.12);
+const lanternBracket = new THREE.Mesh(new THREE.BoxGeometry(0.20, 0.05, 0.05), brassMat);
+lanternGroup.add(lanternBracket);
+const lanternGlass = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.06, 0.18, 8), new THREE.MeshStandardMaterial({
+  color: 0xffe6b0,
+  emissive: 0xffa834,
+  emissiveIntensity: 0.45,
+  roughness: 0.3
+}));
+lanternGlass.position.set(0.12, -0.10, 0);
+lanternGroup.add(lanternGlass);
+signGroup.add(lanternGroup);
+
+// The house's quiet rear wall carries the project credit; the plaque is clickable in island view.
+const creditCanvas=document.createElement('canvas');creditCanvas.width=1024;creditCanvas.height=448;
+const creditContext=creditCanvas.getContext('2d');
+creditContext.fillStyle='#7e5839';creditContext.fillRect(0,0,1024,448);
+creditContext.fillStyle='#98704b';for(let y=8;y<448;y+=68)creditContext.fillRect(0,y,1024,4);
+creditContext.strokeStyle='#d6af70';creditContext.lineWidth=12;creditContext.strokeRect(15,15,994,418);
+creditContext.textAlign='center';creditContext.fillStyle='#fff2cf';
+creditContext.font='bold 92px Georgia';creditContext.fillText('GitHub  ↗',512,140);
+creditContext.font='52px Arial';creditContext.fillText('github.com/tubban1/island',512,230);
+creditContext.fillStyle='#efcf9a';creditContext.font='italic 46px Georgia';creditContext.fillText('inspired by x@nowsomemv',512,338);
+const creditTexture=new THREE.CanvasTexture(creditCanvas);creditTexture.colorSpace=THREE.SRGBColorSpace;creditTexture.anisotropy=renderer.capabilities.getMaxAnisotropy();
+const creditBoard=new THREE.Mesh(new THREE.BoxGeometry(4.12,1.82,.12),new THREE.MeshStandardMaterial({color:0x775336,roughness:.85}));creditBoard.position.set(14.8,2.4,-3.60);creditBoard.castShadow=true;scene.add(creditBoard);
+const githubPlaque=new THREE.Mesh(new THREE.PlaneGeometry(3.96,1.68),new THREE.MeshStandardMaterial({map:creditTexture,roughness:.9,side:THREE.DoubleSide}));githubPlaque.rotation.y=Math.PI;githubPlaque.position.set(14.8,2.4,-3.67);scene.add(githubPlaque);
+for(const x of [12.32,17.28]){
+  const bracket=new THREE.Mesh(new THREE.BoxGeometry(.24,.50,.18),new THREE.MeshStandardMaterial({color:0x765337,roughness:.82}));bracket.position.set(x,2.35,-3.58);bracket.castShadow=true;scene.add(bracket);
+  const glass=new THREE.Mesh(new THREE.BoxGeometry(.17,.29,.19),new THREE.MeshStandardMaterial({color:0xffda91,emissive:0xa36a27,emissiveIntensity:.36,roughness:.45}));glass.position.set(x,2.35,-3.69);scene.add(glass);
+}
 
 const mooredBoat=boat.clone(true);mooredBoat.scale.setScalar(.56);mooredBoat.position.set(harbourLayout.mooring.x,.13,harbourLayout.mooring.z);mooredBoat.rotation.y=harbourLayout.mooring.angle;scene.add(mooredBoat);
 const moor=harbourLayout.mooring;
@@ -237,8 +506,75 @@ function surfaceRipple(x,z){
  if(ripples.length>24){const old=ripples.shift();scene.remove(old);old.material.dispose();}
 }
 const raycaster=new THREE.Raycaster(),pointer=new THREE.Vector2(),waterPlane=new THREE.Plane(new THREE.Vector3(0,1,0),.18);
+const roomPointers=new Map();let roomGestureMoved=false;
 renderer.domElement.addEventListener('pointerdown',event=>{
- if(game.isRoom){game.clickRoom(event);return;}
+  if(!game?.isRoom||document.querySelector('dialog[open]'))return;
+  roomPointers.set(event.pointerId,{x:event.clientX,y:event.clientY,travel:0,pan:event.button===2||event.shiftKey});
+  if(roomPointers.size>1)roomGestureMoved=true;
+  else roomGestureMoved=false;
+  renderer.domElement.setPointerCapture?.(event.pointerId);renderer.domElement.classList.add('is-orbiting');event.preventDefault();
+});
+renderer.domElement.addEventListener('pointermove',event=>{
+  if(!game?.isRoom)return;
+  const current=roomPointers.get(event.pointerId);
+  if(!current){renderer.domElement.style.cursor=game.hoverRoom(event)?'pointer':'grab';return;}
+  const dx=event.clientX-current.x,dy=event.clientY-current.y;
+  current.travel+=Math.abs(dx)+Math.abs(dy);if(current.travel>5)roomGestureMoved=true;
+  if(roomPointers.size===2){
+    const other=[...roomPointers.entries()].find(([id])=>id!==event.pointerId)?.[1];
+    if(other){const before=Math.hypot(current.x-other.x,current.y-other.y),after=Math.hypot(event.clientX-other.x,event.clientY-other.y);game.zoomRoom((before-after)*2.4);}
+  }else game.dragRoom(dx,dy,current.pan||event.shiftKey);
+  current.x=event.clientX;current.y=event.clientY;event.preventDefault();
+});
+const endRoomGesture=event=>{
+  if(!roomPointers.has(event.pointerId))return;
+  roomPointers.delete(event.pointerId);renderer.domElement.releasePointerCapture?.(event.pointerId);
+  if(!roomPointers.size){renderer.domElement.classList.remove('is-orbiting');if(!roomGestureMoved&&event.type==='pointerup')game.clickRoom(event);game.hoverRoom(event);}
+};
+renderer.domElement.addEventListener('pointerup',endRoomGesture);renderer.domElement.addEventListener('pointercancel',endRoomGesture);
+renderer.domElement.addEventListener('contextmenu',event=>{if(game?.isRoom)event.preventDefault();});
+let orbiting=false,orbitMoved=false,lastOrbitX=0,lastOrbitY=0,orbitTravel=0;
+let orbitYaw=Math.atan2(camera.position.x,camera.position.z),orbitPitch=Math.atan2(camera.position.y,Math.hypot(camera.position.x,camera.position.z));
+let viewZoom=1;
+function minimumOrbitPitch(){return Math.max(.36,Math.atan(ORTHO/(cameraOffset.length()*game.zoom*viewZoom))+.06);}
+renderer.domElement.addEventListener('pointerdown',event=>{
+  if(!game || game.isRoom || game.state.phase!=='creator')return;
+  orbiting=true;orbitMoved=false;orbitTravel=0;lastOrbitX=event.clientX;lastOrbitY=event.clientY;
+  renderer.domElement.classList.add('is-orbiting');renderer.domElement.setPointerCapture?.(event.pointerId);event.preventDefault();
+});
+renderer.domElement.addEventListener('pointermove',event=>{
+  if(!orbiting)return;
+  const dx=event.clientX-lastOrbitX,dy=event.clientY-lastOrbitY;lastOrbitX=event.clientX;lastOrbitY=event.clientY;
+  orbitTravel+=Math.abs(dx)+Math.abs(dy);if(orbitTravel>5)orbitMoved=true;
+  orbitYaw-=dx*.008;orbitPitch=THREE.MathUtils.clamp(orbitPitch+dy*.006,minimumOrbitPitch(),1.28);event.preventDefault();
+});
+const endOrbit=event=>{
+  if(!orbiting)return;
+  orbiting=false;renderer.domElement.classList.remove('is-orbiting');renderer.domElement.releasePointerCapture?.(event.pointerId);
+  if(orbitMoved)return;
+  const bounds=renderer.domElement.getBoundingClientRect();
+  pointer.set((event.clientX-bounds.left)/bounds.width*2-1,-(event.clientY-bounds.top)/bounds.height*2+1);
+  raycaster.setFromCamera(pointer,camera);
+  if(raycaster.intersectObject(githubPlaque).length){window.open('https://github.com/tubban1/island','_blank','noopener,noreferrer');return;}
+  if(raycaster.intersectObjects([harbourSign, signBoard]).length && game?.state.phase==='creator'){
+    const editor = document.getElementById('gift-editor');
+    if (editor && !editor.open) editor.showModal();
+    return;
+  }
+  const hit=new THREE.Vector3();
+  if(raycaster.ray.intersectPlane(waterPlane,hit) && ((hit.x-13.5)/(10.15*ISLAND_SCALE))**2+(hit.z/(7.65*ISLAND_SCALE))**2>1.05){schools.simulation.attract(hit.x,hit.z);surfaceRipple(hit.x,hit.z);}
+};
+renderer.domElement.addEventListener('pointerup',endOrbit);renderer.domElement.addEventListener('pointercancel',endOrbit);
+renderer.domElement.addEventListener('pointermove',event=>{
+  if(orbiting || game?.state.phase!=='creator')return;
+  const bounds=renderer.domElement.getBoundingClientRect();
+  pointer.set((event.clientX-bounds.left)/bounds.width*2-1,-(event.clientY-bounds.top)/bounds.height*2+1);
+  raycaster.setFromCamera(pointer,camera);
+  renderer.domElement.style.cursor=raycaster.intersectObjects([githubPlaque, harbourSign, signBoard]).length?'pointer':'';
+});
+renderer.domElement.addEventListener('wheel',event=>{if(!game)return;if(game.isRoom){game.zoomRoom(event.deltaY);event.preventDefault();return;}if(game.state.phase!=='creator')return;viewZoom=THREE.MathUtils.clamp(viewZoom-event.deltaY*.0012,.68,1.5);orbitPitch=Math.max(orbitPitch,minimumOrbitPitch());event.preventDefault();},{passive:false});
+renderer.domElement.addEventListener('pointerdown',event=>{
+ if(orbiting||game.isRoom)return;
  const bounds=renderer.domElement.getBoundingClientRect();
  pointer.set((event.clientX-bounds.left)/bounds.width*2-1,-(event.clientY-bounds.top)/bounds.height*2+1);
  raycaster.setFromCamera(pointer,camera);const hit=new THREE.Vector3();
@@ -251,7 +587,7 @@ let fishRippleTimer=0;
 const params=new URLSearchParams(location.search);
 const fixedFrame=params.has('frame')?THREE.MathUtils.clamp(Number(params.get('frame'))||0,0,21.3):null;
 const keys=new Set();let speed=0,steer=0;let wakeTimer=0,ringTimer=0;
-const game=createGiftGame({scene,boat,keys});
+const game=createGiftGame({scene,boat,keys,onIslandTitleChange:renderHarbourSign});
 statusEl.textContent='小岛已准备好。';
 addEventListener('keydown',e=>{
  if(document.querySelector('dialog[open]')||/INPUT|TEXTAREA|SELECT/.test(e.target.tagName))return;
@@ -265,13 +601,18 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden)keys.clear(
 const followTarget=new THREE.Vector3();
 const cameraOffset=new THREE.Vector3(-10,25,21);
 let cameraInitialized=false;
+function resetIslandView(){orbitYaw=Math.atan2(cameraOffset.x,cameraOffset.z);orbitPitch=Math.atan2(cameraOffset.y,Math.hypot(cameraOffset.x,cameraOffset.z));viewZoom=1;}
 function cameraFollow(dt){
   const desired=game.focus;
   if(!cameraInitialized){followTarget.copy(desired);cameraInitialized=true;}
   followTarget.lerp(desired,1-Math.exp(-3.2*dt));
-  camera.position.copy(followTarget).add(cameraOffset);
+  const distance=cameraOffset.length();
+  if(game.state.phase==='creator'){
+    const horizontal=Math.cos(orbitPitch)*distance;
+    camera.position.set(followTarget.x+Math.sin(orbitYaw)*horizontal,followTarget.y+Math.sin(orbitPitch)*distance,followTarget.z+Math.cos(orbitYaw)*horizontal);
+  }else camera.position.copy(followTarget).add(cameraOffset);
   camera.lookAt(followTarget);
-  camera.zoom=THREE.MathUtils.lerp(camera.zoom,game.zoom,1-Math.exp(-4*dt));
+  camera.zoom=THREE.MathUtils.lerp(camera.zoom,game.zoom*(game.state.phase==='creator'?viewZoom:1),1-Math.exp(-4*dt));
   camera.updateProjectionMatrix();
 }
 
@@ -288,12 +629,21 @@ function tick(){
  boatMotion.x=boat.position.x;boatMotion.z=boat.position.z;boatMotion.fx=Math.sin(boat.rotation.y);boatMotion.fz=Math.cos(boat.rotation.y);
  boatMotion.speed=travel<2 && dt>0?travel/dt:0;previousBoat.copy(boat.position);hasBoatPosition=true;
  beachLife.update(t);turtle.update(dt,t);mooredBoat.position.y=.13+Math.sin(t*1.8)*.018;mooredBoat.rotation.z=Math.sin(t*1.5)*.018;
+  // 招牌微仰角正对俯视镜头、随海风轻微摆动动态、小信箱金旗微颤与复古壁灯呼吸微光
+  const signWindX = -0.16 + Math.sin(t * 1.5) * 0.026 + Math.sin(t * 2.8) * 0.008;
+  const signWindZ = Math.sin(t * 1.1) * 0.014;
+  signBoardGroup.rotation.x = signWindX;
+  signBoardGroup.rotation.z = signWindZ;
+ mbFlag.rotation.z = Math.sin(t * 3.2) * 0.08 + Math.sin(t * 6.5) * 0.03;
+ lanternGlass.material.emissiveIntensity = 0.42 + Math.sin(t * 2.8) * 0.12 + Math.sin(t * 7.7) * 0.04;
+
  schools.update(dt,t,boatMotion);fishRippleTimer-=dt;
  const startled=schools.simulation.fish.find(f=>f.mode==='flee');
  if(startled && fishRippleTimer<=0){surfaceRipple(startled.x,startled.z);fishRippleTimer=.7;}
  for(let i=ripples.length-1;i>=0;i--){const r=ripples[i];r.userData.life+=dt;const age=r.userData.life;r.scale.setScalar(.25+age*.65);r.material.opacity=.28*Math.max(0,1-age/2.5);if(age>2.5){scene.remove(r);r.material.dispose();ripples.splice(i,1);}}
 
- cameraFollow(fixedFrame===null?dt:1);if(game.isRoom)game.renderRoom(renderer,t);else composer.render();
+ cameraFollow(fixedFrame===null?dt:1);if(game.isRoom){game.moveRoom(dt);game.renderRoom(renderer,t);}else composer.render();
 }
+document.getElementById('island-view')?.addEventListener('click',resetIslandView);
 function resize(){const a=innerWidth/innerHeight;camera.left=-ORTHO*a;camera.right=ORTHO*a;camera.top=ORTHO;camera.bottom=-ORTHO;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);composer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));}
 addEventListener('resize',()=>{resize();if(fixedFrame!==null)tick();});resize();tick();

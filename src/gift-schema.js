@@ -13,10 +13,11 @@ export function validateGift(input){
   if(typeof value!=='string'||value.length>max||(required&&!value.trim()))throw new Error(`请检查${{recipient:'收礼人',sender:'送礼人',title:'小岛名字',letter:'信件',occasion:'纪念日',greeting:'欢迎语'}[name]}。`);
   return value.trim();
  };
- const gift={version:1,recipient:text('recipient',40,true),sender:text('sender',40,true),title:text('title',60,true),greeting:text('greeting',180),letter:text('letter',4000,true),occasion:text('occasion',60)};
- if(!Object.hasOwn(DIFFICULTIES,input.difficulty))throw new Error('请选择游戏难度。');
+ const gift={version:1,recipient:text('recipient',40,true),sender:text('sender',40,true),title:text('title',20,true),greeting:text('greeting',180),letter:text('letter',4000,true),occasion:text('occasion',60)};
  gift.difficulty=input.difficulty;
  gift.theme=input.theme==='sea'?'sea':'warm';
+ const validMusics=['music_box','sea_breeze','canon','starry','none'];
+ gift.music=validMusics.includes(input.music)?input.music:'music_box';
  if(!Array.isArray(input.photos)||input.photos.length>6)throw new Error('最多布置 6 张照片。');
  const slots=new Set();
  gift.photos=input.photos.map(photo=>{

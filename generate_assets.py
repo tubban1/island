@@ -202,11 +202,14 @@ def add_coral_cluster(scene,x,z,s=1.0,seed=0,name='Reef'):
     rng=random.Random(seed)
     # Entire coral, including the highest tube, stays below the surface.
     radius=math.hypot((x-13.5)/(10.15*ISLAND_SCALE),z/(7.65*ISLAND_SCALE))
-    scene.y_offset=min(seabed_height(radius)+.40,-.38-1.15*s)
-    # Broad fractured rocks rooted in the visible sandy shelf.
+    coral_y_offset=min(seabed_height(radius)+.40,-.38-1.15*s)
+    # Lift only the broad rocks onto the sandy shelf: their bases remain below
+    # the water plane while their upper edges stay visible at the shoreline.
+    scene.y_offset=seabed_height(radius)-.02
     for k in range(2+(seed%2)):
         rock=trimesh.creation.icosphere(subdivisions=1,radius=1)
-        add(scene,rock,f'{name}_Rock_{k}',[M['reef'],M['reef_sand'],M['reef_slate'],M['reef_brown']][(seed+k)%4],trs((x+(k-.5)*.65*s,-.28,z+(rng.random()-.5)*.6*s),(0,rng.random()*math.tau,0),scl=(1.05*s,.43*s,.76*s)))
+        add(scene,rock,f'{name}_Rock_{k}',[M['reef'],M['reef_sand'],M['reef_slate'],M['reef_brown']][(seed+k)%4],trs((x+(k-.5)*.65*s,-.12,z+(rng.random()-.5)*.6*s),(0,rng.random()*math.tau,0),scl=(1.05*s,.30*s,.76*s)))
+    scene.y_offset=coral_y_offset
     # tube corals
     for i in range(rng.randint(1,5)):
         rad=(.08+rng.random()*.08)*s; hh=(.42+rng.random()*.48)*s
