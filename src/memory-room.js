@@ -130,13 +130,13 @@ export function createMemoryRoom(exterior){
 
  // 🪟 面海大窗与可推开窗扇
  const windowMaterial=new THREE.MeshBasicMaterial({map:windowView.texture});
- const windowMesh=new THREE.Mesh(new THREE.PlaneGeometry(3.65,2.65),windowMaterial);windowMesh.position.set(2.57,2.82,-3.88);group.add(windowMesh);
+ const windowMesh=new THREE.Mesh(new THREE.PlaneGeometry(4.8,3.5),windowMaterial);windowMesh.position.set(2.57,2.82,-5.1);group.add(windowMesh);
  for(const x of [.67,4.47]){box(.13,2.9,.20,x,2.82,-3.74,palette.cream);box(.055,2.65,.04,x+(x<2? .1:-.1),2.82,-3.60,palette.oak);}
  for(const y of [1.40,4.23])box(3.94,.14,.20,2.57,y,-3.74,palette.cream);
  box(4.2,.14,.48,2.57,1.34,-3.58,palette.oak);box(.055,2.69,.11,2.57,2.82,-3.61,palette.cream);box(3.67,.055,.11,2.57,2.68,-3.61,palette.cream);
  beam([.18,4.45,-3.37],[4.95,4.45,-3.37],.035,palette.brass);sphere(.075,.14,4.45,-3.37,palette.brass);sphere(.075,4.99,4.45,-3.37,palette.brass);
 
-  // 左右开合活动窗扇（推开可吹海风）
+  // 左右开合活动窗扇（推开向外开，拥抱海风）
   let isWindowOpen=false,windowAngle=0,targetWindowAngle=0;
   const windowLeftHinge=new THREE.Group();windowLeftHinge.position.set(.76,2.82,-3.66);group.add(windowLeftHinge);
   const leftCasement=new THREE.Mesh(new THREE.BoxGeometry(1.78,2.62,.035),mat('#f4ebd9',{roughness:.65}));
@@ -191,58 +191,34 @@ export function createMemoryRoom(exterior){
  const letterHotspot=new THREE.Mesh(new THREE.PlaneGeometry(1.8,1.4),new THREE.MeshBasicMaterial({transparent:true,opacity:0,depthWrite:false,side:THREE.DoubleSide}));
  letterHotspot.rotation.x=-Math.PI/2;letterHotspot.position.set(-.3,.851,.4);letterHotspot.userData.action='letter';group.add(letterHotspot);
  for(let i=0;i<4;i++){const line=box(.38-i*.035,.003,.006,-.41,.819,.38+i*.047,palette.edge);line.rotation.y=.12;}
-  cyl(.041,.041,.013,-.17,.84,.33,palette.rust,16);
-  for(const [x,z] of [[-.87,.14],[.35,.72]]){cyl(.12,.12,.018,x,.813,z,palette.ceramic);cyl(.075,.057,.13,x,.88,z,palette.ceramic);cyl(.06,.06,.006,x,.948,z,palette.edge);const handle=add(new THREE.TorusGeometry(.05,.013,6,12),palette.ceramic,x+.075,.89,z);handle.rotation.y=Math.PI/2;}
+ cyl(.041,.041,.013,-.17,.84,.33,palette.rust,16);
 
-  // ☕ 咖啡杯袅袅热气粒子系统
-  const steamGroup=new THREE.Group();
-  steamGroup.position.set(-.87,.98,.14); // 位于左侧咖啡杯口
-  group.add(steamGroup);
-  const steamCanvas=document.createElement('canvas');steamCanvas.width=steamCanvas.height=64;
-  const sCtx=steamCanvas.getContext('2d');
-  const sGrad=sCtx.createRadialGradient(32,32,0,32,32,32);
-  sGrad.addColorStop(0,'rgba(255,255,255,0.7)');sGrad.addColorStop(.35,'rgba(255,255,255,0.22)');sGrad.addColorStop(1,'rgba(255,255,255,0)');
-  sCtx.fillStyle=sGrad;sCtx.fillRect(0,0,64,64);
-  const steamTexture=new THREE.CanvasTexture(steamCanvas);
-  const steamParticles=[];
-  const steamMat=new THREE.SpriteMaterial({map:steamTexture,transparent:true,opacity:.35,depthWrite:false});
-  for(let i=0;i<14;i++){
-    const sprite=new THREE.Sprite(steamMat.clone());
-    sprite.scale.set(.06,.06,1);
-    steamGroup.add(sprite);
-    steamParticles.push({sprite,age:Math.random()*2.4,maxAge:2.0+Math.random()*.8,angle:Math.random()*Math.PI*2});
-  }
+ // ☕ 只保留一杯冒烟的咖啡
+ const cx = -.87, cz = .14;
+ cyl(.12,.12,.018,cx,.813,cz,palette.ceramic);
+ cyl(.075,.057,.13,cx,.88,cz,palette.ceramic);
+ cyl(.06,.06,.006,cx,.948,cz,palette.edge);
+ const handle=add(new THREE.TorusGeometry(.05,.013,6,12),palette.ceramic,cx+.075,.89,cz);
+ handle.rotation.y=Math.PI/2;
 
-  // 🐚 茶几上的扇贝与螺旋海螺
-  const shellGeo=new THREE.CylinderGeometry(.065,.015,.012,12,1,false,0,Math.PI);
-  const shellMesh=new THREE.Mesh(shellGeo,mat('#f7eee1',{roughness:.55}));
-  shellMesh.rotation.x=-Math.PI/2;shellMesh.rotation.z=.4;shellMesh.position.set(-.58,.818,.62);group.add(shellMesh);
-  const conchMesh=new THREE.Mesh(new THREE.ConeGeometry(.028,.10,8),mat('#eddac4',{roughness:.6}));
-  conchMesh.rotation.z=Math.PI/2.4;conchMesh.rotation.y=.7;conchMesh.position.set(-.46,.82,.65);group.add(conchMesh);
-
-  // 🍾 漂流玻璃瓶（内含羊皮纸卷与红丝带，点击可回信）
-  const bottleGroup=new THREE.Group();bottleGroup.position.set(.12,.828,.32);group.add(bottleGroup);
-  const glassMat=mat('#d6ebe6',{transparent:true,opacity:.48,roughness:.15});
-  const bottleBody=new THREE.Mesh(new THREE.CylinderGeometry(.045,.045,.18,16),glassMat);bottleBody.rotation.z=Math.PI/2;bottleGroup.add(bottleBody);
-  const bottleNeck=new THREE.Mesh(new THREE.CylinderGeometry(.022,.032,.05,12),glassMat);bottleNeck.rotation.z=Math.PI/2;bottleNeck.position.set(.11,0,0);bottleGroup.add(bottleNeck);
-  const cork=new THREE.Mesh(new THREE.CylinderGeometry(.02,.024,.025,10),mat('#987046'));cork.rotation.z=Math.PI/2;cork.position.set(.145,0,0);bottleGroup.add(cork);
-  const scroll=new THREE.Mesh(new THREE.CylinderGeometry(.018,.018,.12,10),mat('#e6dcbe'));scroll.rotation.z=Math.PI/2;bottleGroup.add(scroll);
-  const ribbon=new THREE.Mesh(new THREE.TorusGeometry(.02,.005,6,12),mat('#d84440'));ribbon.rotation.y=Math.PI/2;bottleGroup.add(ribbon);
-  const bottleHotspot=new THREE.Mesh(new THREE.BoxGeometry(.35,.2,.25),new THREE.MeshBasicMaterial({transparent:true,opacity:0,depthWrite:false}));
-  bottleHotspot.position.set(.12,.83,.32);bottleHotspot.userData={action:'reply',title:'漂流瓶回信'};group.add(bottleHotspot);
-
-  // 🎵 复古机械八音盒（金色发条旋钮，可点击旋转把玩并切换音乐）
-  const musicBoxGroup=new THREE.Group();musicBoxGroup.position.set(-.05,.83,.66);group.add(musicBoxGroup);
-  const boxBody=new THREE.Mesh(new RoundedBoxGeometry(.26,.13,.18,2,.015),palette.oak);musicBoxGroup.add(boxBody);
-  const boxLid=new THREE.Mesh(new RoundedBoxGeometry(.26,.018,.18,2,.01),palette.edge);boxLid.position.set(0,.068,-.085);boxLid.rotation.x=-Math.PI/3.2;musicBoxGroup.add(boxLid);
-  const cylinder=new THREE.Mesh(new THREE.CylinderGeometry(.022,.022,.15,14),palette.brass);cylinder.rotation.z=Math.PI/2;cylinder.position.set(0,.038,0);musicBoxGroup.add(cylinder);
-  const comb=new THREE.Mesh(new THREE.BoxGeometry(.16,.012,.035),palette.brass);comb.position.set(0,.038,.036);musicBoxGroup.add(comb);
-  const windingPivot=new THREE.Group();windingPivot.position.set(.135,.02,0);musicBoxGroup.add(windingPivot);
-  const stem=new THREE.Mesh(new THREE.CylinderGeometry(.007,.007,.035,8),palette.brass);stem.rotation.z=Math.PI/2;windingPivot.add(stem);
-  const keyWing=new THREE.Mesh(new THREE.TorusGeometry(.025,.005,6,12),palette.brass);keyWing.rotation.y=Math.PI/2;keyWing.position.x=.022;windingPivot.add(keyWing);
-  const musicBoxHotspot=new THREE.Mesh(new THREE.BoxGeometry(.38,.28,.28),new THREE.MeshBasicMaterial({transparent:true,opacity:0,depthWrite:false}));
-  musicBoxHotspot.position.copy(musicBoxGroup.position);musicBoxHotspot.userData={action:'music_box',title:'机械八音盒'};group.add(musicBoxHotspot);
-  let windingSpinTime=0;
+ // ☕ 咖啡杯袅袅热气粒子系统
+ const steamGroup=new THREE.Group();
+ steamGroup.position.set(-.87,.98,.14); // 位于这杯咖啡杯口
+ group.add(steamGroup);
+ const steamCanvas=document.createElement('canvas');steamCanvas.width=steamCanvas.height=64;
+ const sCtx=steamCanvas.getContext('2d');
+ const sGrad=sCtx.createRadialGradient(32,32,0,32,32,32);
+ sGrad.addColorStop(0,'rgba(255,255,255,0.7)');sGrad.addColorStop(.35,'rgba(255,255,255,0.22)');sGrad.addColorStop(1,'rgba(255,255,255,0)');
+ sCtx.fillStyle=sGrad;sCtx.fillRect(0,0,64,64);
+ const steamTexture=new THREE.CanvasTexture(steamCanvas);
+ const steamParticles=[];
+ const steamMat=new THREE.SpriteMaterial({map:steamTexture,transparent:true,opacity:.35,depthWrite:false});
+ for(let i=0;i<14;i++){
+   const sprite=new THREE.Sprite(steamMat.clone());
+   sprite.scale.set(.06,.06,1);
+   steamGroup.add(sprite);
+   steamParticles.push({sprite,age:Math.random()*2.4,maxAge:2.0+Math.random()*.8,angle:Math.random()*Math.PI*2});
+ }
 
   function flowerPot(x,y,z,scale=1){
    cyl(.18*scale,.13*scale,.31*scale,x,y+.15*scale,z,palette.ceramic,20);
@@ -422,15 +398,10 @@ export function createMemoryRoom(exterior){
    // 【开关海景大窗】
    toggleWindow(){
      isWindowOpen = !isWindowOpen;
-     targetWindowAngle = isWindowOpen ? (Math.PI / 3.2) : 0;
+     targetWindowAngle = isWindowOpen ? (Math.PI / 3.0) : 0;
      return isWindowOpen;
    },
    getWindowOpen(){ return isWindowOpen; },
-
-   // 【拨动机械八音盒】
-   triggerMusicBox(){
-     windingSpinTime = 2.4;
-   },
 
    // 重置回第一人称舒适视角
    resetView(){
@@ -476,16 +447,10 @@ export function createMemoryRoom(exterior){
       p.sprite.material.opacity = Math.sin(t * Math.PI) * 0.36;
     }
 
-    // 🎵 八音盒发条旋转动态
-    if(windingSpinTime > 0){
-      windingPivot.rotation.x += 0.28;
-      windingSpinTime -= 0.016;
-    }
-
-    // 🪟 开窗角度与窗帘摆动联动
+    // 🪟 开窗角度与窗帘摆动联动（窗户向外推开）
     windowAngle += (targetWindowAngle - windowAngle) * 0.12;
-    windowLeftHinge.rotation.y = -windowAngle;
-    windowRightHinge.rotation.y = windowAngle;
+    windowLeftHinge.rotation.y = windowAngle;
+    windowRightHinge.rotation.y = -windowAngle;
     const curSwayAmp = isWindowOpen ? 0.054 : 0.018;
     const curSwaySpeed = isWindowOpen ? 1.5 : 0.65;
     for(let i=0;i<curtains.length;i++)curtains[i].rotation.y=Math.sin(time*curSwaySpeed+i)*curSwayAmp;

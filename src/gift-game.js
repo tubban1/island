@@ -206,17 +206,9 @@ export function createGiftGame({scene, boat, keys, onIslandTitleChange}) {
         </label>
       </div>
 
-      <div class="field-pair">
-        <label>信纸质感
-          <select name="paperStyle">
-            <option value="parchment">📜 复古羊皮纸</option>
-            <option value="watercolor">🎨 清新水彩纸</option>
-          </select>
-        </label>
-        <label>纪念日日期（挂历展示）
-          <input type="date" name="anniversaryDate" id="anniversary-date-input">
-        </label>
-      </div>
+      <label>纪念日日期（挂历展示）
+        <input type="date" name="anniversaryDate" id="anniversary-date-input">
+      </label>
 
       <fieldset>
         <legend>自然环境音效 <small>分层自然白噪音 · 可多选</small></legend>
@@ -387,7 +379,7 @@ export function createGiftGame({scene, boat, keys, onIslandTitleChange}) {
         <button id="room-edit" type="button">继续布置</button>
       </div>
     </div>
-    <div id="room-intro-hint" class="room-intro-hint" role="status">拖动环顾 · 滚轮靠近 · WASD 平移 · 点击相框、信件、大窗或八音盒</div>
+    <div id="room-intro-hint" class="room-intro-hint" role="status">拖动环顾 · 滚轮靠近 · WASD 平移 · 点击相框、信件、海景大窗</div>
     <div id="room-hotspot-hint" class="room-hotspot-hint" hidden></div>
     <div id="room-teleport-bar" class="room-teleport-bar" aria-label="快捷视点传送">
       <button type="button" class="teleport-pill" data-spot="table">☕ 茶几</button>
@@ -406,13 +398,9 @@ export function createGiftGame({scene, boat, keys, onIslandTitleChange}) {
   <dialog id="memory-dialog" class="gift-dialog memory">
     <button id="memory-close" class="close" aria-label="关闭回忆">×</button>
     <div class="letter-tools" id="letter-tools" hidden>
-      <div class="paper-style-pills">
-        <button type="button" class="paper-pill active" data-paper="parchment" title="复古羊皮纸">📜 羊皮纸</button>
-        <button type="button" class="paper-pill" data-paper="watercolor" title="清新水彩纸">🎨 水彩纸</button>
-      </div>
-      <button type="button" id="letter-to-reply-btn" class="letter-reply-pill">💌 投入漂流瓶回信</button>
+      <button type="button" id="letter-to-reply-btn" class="letter-reply-pill">✍️ 写回信</button>
     </div>
-    <div id="letter-paper-wrap" class="letter-paper-wrap">
+    <div id="letter-paper-wrap" class="letter-paper-wrap paper-watercolor">
       <img id="memory-image" alt="">
       <h2 id="memory-title"></h2>
       <p id="memory-copy"></p>
@@ -438,11 +426,11 @@ export function createGiftGame({scene, boat, keys, onIslandTitleChange}) {
   </dialog>
 
   <dialog id="reply-dialog" class="gift-dialog reply-dialog">
-    <button id="reply-close" class="close" aria-label="关闭漂流瓶">×</button>
+    <button id="reply-close" class="close" aria-label="关闭回信">×</button>
     <div class="sheet-heading">
       <div>
-        <span class="eyebrow">DRIFT BOTTLE MESSAGE</span>
-        <h2 id="reply-title">漂流瓶的心愿与回信</h2>
+        <span class="eyebrow">REPLY LETTER</span>
+        <h2 id="reply-title">给 TA 的回信</h2>
       </div>
     </div>
     <div id="reply-view-mode" hidden>
@@ -453,11 +441,11 @@ export function createGiftGame({scene, boat, keys, onIslandTitleChange}) {
       </div>
       <div class="editor-footer">
         <button type="button" id="reply-edit-btn" class="secondary" hidden>修改回信</button>
-        <button type="button" id="reply-done-btn" class="primary">放回漂流瓶</button>
+        <button type="button" id="reply-done-btn" class="primary">收起回信</button>
       </div>
     </div>
     <form id="reply-form">
-      <p class="subtle">将你的心愿或想对 TA 说的话装进漂流瓶，留在小屋里。<br>送礼的人查看小岛时也能读到你的回信。</p>
+      <p class="subtle">写下收到礼物的感受或想对 TA 说的话，留在小屋里。<br>TA 再次打开小岛时也能读到你的回信。</p>
       <label>你的名字 / 昵称
         <input name="replySender" id="reply-sender-input" maxlength="40" placeholder="你的名字">
       </label>
@@ -467,7 +455,7 @@ export function createGiftGame({scene, boat, keys, onIslandTitleChange}) {
       <p id="reply-status-msg" class="form-message" role="status"></p>
       <div class="editor-footer">
         <button type="button" id="reply-cancel-btn" class="secondary">稍后再写</button>
-        <button type="submit" id="reply-submit-btn" class="primary">投入漂流瓶 🌊</button>
+        <button type="submit" id="reply-submit-btn" class="primary">寄出回信 ✨</button>
       </div>
     </form>
   </dialog>
@@ -571,7 +559,7 @@ export function createGiftGame({scene, boat, keys, onIslandTitleChange}) {
   }
 
   function readForm() {
-    for (const key of ['recipient', 'sender', 'title', 'occasion', 'anniversaryDate', 'greeting', 'letter', 'theme', 'difficulty', 'music', 'paperStyle']) {
+    for (const key of ['recipient', 'sender', 'title', 'occasion', 'anniversaryDate', 'greeting', 'letter', 'theme', 'difficulty', 'music']) {
       const item = form.elements.namedItem(key);
       if (item) {
         if (key === 'title') {
@@ -581,6 +569,7 @@ export function createGiftGame({scene, boat, keys, onIslandTitleChange}) {
         }
       }
     }
+    draft.paperStyle = 'watercolor';
     const ambientChecks = form.querySelectorAll('input[name="ambient"]:checked');
     draft.ambient = Array.from(ambientChecks).map(cb => cb.value);
     saveRooms();
@@ -588,7 +577,7 @@ export function createGiftGame({scene, boat, keys, onIslandTitleChange}) {
   }
 
   function fillForm() {
-    for (const key of ['recipient', 'sender', 'title', 'occasion', 'anniversaryDate', 'greeting', 'letter', 'theme', 'difficulty', 'music', 'paperStyle']) {
+    for (const key of ['recipient', 'sender', 'title', 'occasion', 'anniversaryDate', 'greeting', 'letter', 'theme', 'difficulty', 'music']) {
       const item = form.elements.namedItem(key);
       if (item) {
         if (key === 'title') {
@@ -598,6 +587,7 @@ export function createGiftGame({scene, boat, keys, onIslandTitleChange}) {
         }
       }
     }
+    draft.paperStyle = 'watercolor';
     const ambient = draft.ambient || ['waves', 'breeze'];
     form.querySelectorAll('input[name="ambient"]').forEach(cb => {
       cb.checked = ambient.includes(cb.value);
@@ -975,25 +965,11 @@ export function createGiftGame({scene, boat, keys, onIslandTitleChange}) {
     $('letter-tools').hidden = false;
     text('memory-title', `亲爱的 ${gift.recipient || '你'}：`);
     text('memory-copy', gift.letter + `\n\n—— ${gift.sender || '送你小岛的人'}`);
-    const currentPaper = gift.paperStyle || 'parchment';
-    $('letter-paper-wrap').className = 'letter-paper-wrap paper-' + currentPaper;
-    root.querySelectorAll('.paper-pill').forEach(pill => {
-      pill.classList.toggle('active', pill.dataset.paper === currentPaper);
-    });
+    $('letter-paper-wrap').className = 'letter-paper-wrap paper-watercolor';
+    const hasReply = !!(gift.reply?.content || draft.reply?.content);
+    text('letter-to-reply-btn', hasReply ? '💌 查看回信' : '✍️ 写回信');
     $('memory-dialog').showModal();
   }
-
-  // 信纸质感切换
-  root.querySelectorAll('.paper-pill').forEach(pill => {
-    pill.onclick = () => {
-      const style = pill.dataset.paper;
-      gift.paperStyle = style;
-      draft.paperStyle = style;
-      saveRooms();
-      $('letter-paper-wrap').className = 'letter-paper-wrap paper-' + style;
-      root.querySelectorAll('.paper-pill').forEach(p => p.classList.toggle('active', p === pill));
-    };
-  });
 
   $('letter-to-reply-btn').onclick = () => {
     $('memory-dialog').close();
@@ -1086,7 +1062,7 @@ export function createGiftGame({scene, boat, keys, onIslandTitleChange}) {
     if (!content) return;
     const submitBtn = $('reply-submit-btn');
     submitBtn.disabled = true;
-    text('reply-status-msg', '正在将回信放入漂流瓶…');
+    text('reply-status-msg', '正在保存回信…');
     const replyData = { sender, content, createdAt: new Date().toISOString() };
     const giftId = recipientMode ? (new URLSearchParams(location.search).get('gift') || '') : (draft.giftId || '');
     try {
@@ -1103,7 +1079,7 @@ export function createGiftGame({scene, boat, keys, onIslandTitleChange}) {
       draft.reply = replyData;
       saveRooms();
       room.update(gift);
-      toast('回信已妥善放入漂流瓶，随海风留在小岛上 🌊');
+      toast('回信已留在小屋中 ✨');
       $('reply-dialog').close();
     } catch (err) {
       text('reply-status-msg', err.message);
@@ -1543,19 +1519,8 @@ export function createGiftGame({scene, boat, keys, onIslandTitleChange}) {
         const isOpen = room.toggleWindow();
         synth.setWindowOpen(isOpen);
         toast(isOpen ? '推开了木窗，海风轻拂而来…' : '轻轻合上了木窗。');
-      } else if (hit?.action === 'music_box') {
-        room.triggerMusicBox();
-        synth.playChimeTink();
-        if (synth.getSong() !== 'music_box') {
-          synth.play('music_box', true);
-          toast('八音盒奏起了清脆旋律 ♫');
-        } else {
-          toast('拧动了八音盒发条 ♫');
-        }
       } else if (hit?.action === 'calendar') {
         openCalendar();
-      } else if (hit?.action === 'reply') {
-        openReply();
       } else if (hit && Number.isInteger(hit.slot)) {
         const entry = gift.photos.find(p => p.slot === hit.slot);
         if (entry) openPhoto(entry);
@@ -1571,9 +1536,7 @@ export function createGiftGame({scene, boat, keys, onIslandTitleChange}) {
       let label = '';
       if (hit?.action === 'letter') label = '打开桌上的信';
       else if (hit?.action === 'window') label = room.getWindowOpen() ? '关上海景大窗' : '推开木窗 · 吹海风';
-      else if (hit?.action === 'music_box') label = '旋转八音盒发条 ♫';
       else if (hit?.action === 'calendar') label = '查看纪念日挂历';
-      else if (hit?.action === 'reply') label = (gift.reply || draft.reply) ? '查看漂流瓶回信' : '写下漂流瓶回信';
       else if (Number.isInteger(hit?.slot)) label = '查看相框';
       $('room-hotspot-hint').hidden = !label;
       if (label) text('room-hotspot-hint', label);

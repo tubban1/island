@@ -78,18 +78,12 @@ canvas.is-orbiting{cursor:grabbing!important}
 .joystick-base{position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center}
 .joystick-thumb{width:44px;height:44px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#2e7a6d,#1a4d45);border:2px solid rgba(255,255,255,0.8);box-shadow:0 4px 14px rgba(18,65,52,0.4);pointer-events:none;transition:transform .04s ease-out;will-change:transform}
 
-/* 信件工具与纸张风格 */
-.letter-tools{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap}
-.paper-style-pills{display:flex;gap:6px}
-.paper-pill{font-size:11px;font-weight:600;padding:5px 11px;border-radius:14px;border:1px solid #d4cca9;background:rgba(255,252,242,0.7);color:#4c5d4b;cursor:pointer;transition:all .15s}
-.paper-pill.active{background:#25665b;color:#fff8e8;border-color:#1b5349;box-shadow:0 2px 8px rgba(37,102,91,0.25)}
-.letter-reply-pill{margin-left:auto;font-size:11px;font-weight:600;padding:5px 12px;border-radius:14px;border:1px solid #b7d5bf;background:#eaf4eb;color:#235d50;cursor:pointer;transition:background .15s,transform .12s}
+/* 信件工具与水彩信纸风格 */
+.letter-tools{display:flex;justify-content:flex-end;align-items:center;margin-bottom:14px}
+.letter-reply-pill{font-size:12px;font-weight:600;padding:6px 14px;border-radius:16px;border:1px solid #b7d5bf;background:#eaf4eb;color:#235d50;cursor:pointer;transition:background .15s,transform .12s;display:inline-flex;align-items:center;gap:6px}
 .letter-reply-pill:hover{background:#d8ecda;transform:translateY(-1px)}
-.letter-paper-wrap{transition:background .25s ease,border-color .25s ease,color .25s ease;border-radius:12px}
-.letter-paper-wrap.paper-parchment{background:linear-gradient(140deg,#faf3e1 0%,#f4e7c7 100%);border:1px solid #dac49b;padding:24px;box-shadow:inset 0 0 36px rgba(160,120,60,0.12);color:#3b2c1c}
-.letter-paper-wrap.paper-parchment p{color:#3e3020;font-family:Georgia,"Songti SC",serif}
-.letter-paper-wrap.paper-watercolor{background:linear-gradient(135deg,#f7f9fa 0%,#edf3f7 50%,#fbf5f2 100%);border:1px solid #c9d8dc;padding:24px;box-shadow:inset 0 0 30px rgba(130,175,195,0.14);color:#243e37}
-.letter-paper-wrap.paper-watercolor p{color:#243e37;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI",sans-serif}
+.letter-paper-wrap{background:linear-gradient(135deg,#f9fafb 0%,#edf4f7 50%,#fbf6f2 100%);border:1px solid #c9d8dc;padding:24px;box-shadow:inset 0 0 32px rgba(130,175,195,0.14);border-radius:12px;color:#243e37}
+.letter-paper-wrap p{color:#243e37;font-family:Georgia,"Songti SC",serif;line-height:2.2}
 
 /* 纪念日实木挂历弹窗 */
 .gift-dialog.calendar-dialog{width:min(440px,calc(100vw - 32px));padding:26px;text-align:center}
@@ -103,7 +97,7 @@ canvas.is-orbiting{cursor:grabbing!important}
 .calendar-days-count{display:inline-block;font-size:14px;font-weight:700;color:#216154;background:#e4f0e9;border:1px solid #c7e1d2;padding:6px 18px;border-radius:20px}
 .calendar-note{font-size:12px;color:#828e7c;font-style:italic;margin:0}
 
-/* 漂流瓶回信弹窗 */
+/* 回信弹窗 */
 .gift-dialog.reply-dialog{width:min(520px,calc(100vw - 28px))}
 .reply-message-card{background:rgba(255,253,245,0.85);border:1px dashed #afc2ab;border-radius:12px;padding:20px;margin:16px 0;box-shadow:0 4px 14px rgba(0,50,40,0.04)}
 .reply-sender-line{font-size:13px;font-weight:700;color:#22675c;margin-bottom:10px}
