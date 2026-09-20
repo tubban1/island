@@ -45,6 +45,11 @@ canvas.is-orbiting{cursor:grabbing!important}
 .room-pill-btn:hover{background:#d7e7d4;transform:translateY(-1px)}
 .room-pill-btn.danger{border-color:#e8d1d1;background:#fdf2f2;color:#a84646}
 .room-pill-btn.danger:hover{background:#f9dddd}
+.room-title-bar{margin:10px 0 12px}
+.room-title-bar label{display:grid;gap:6px;font-size:12px;font-weight:600;color:#2f5448}
+.room-title-bar input{width:100%;border:1.5px solid #c9d8cb;border-radius:9px;padding:10px 12px;background:#fffef8;color:#1e4c41;font-size:14px;font-weight:600;transition:border-color .15s,box-shadow .15s}
+.room-title-bar input:focus{outline:none;border-color:#2e6b5d;box-shadow:0 0 0 3px rgba(46,107,93,0.15)}
+.room-new-link-hint{color:#3d6c5c;font-size:11px;font-weight:500;line-height:1.4}
 .room-gift-link-bar{display:flex;align-items:center;gap:8px;font-size:11px;background:#ebf4eb;border:1px solid #cee0cc;border-radius:10px;padding:9px 12px;margin-bottom:14px;color:#2e594b}
 .room-link-tip{font-weight:600;white-space:nowrap}
 #room-gift-link{color:#1e6457;text-decoration:underline;text-underline-offset:3px;font-weight:600}
@@ -121,4 +126,17 @@ canvas.is-orbiting{cursor:grabbing!important}
   .room-gift-link-bar{flex-wrap:wrap}
   .room-link-copy-btn{margin-left:0}
 }
-
+.letter-unseal{display:none}
+.memory.unsealing .letter-unseal{display:flex;position:absolute;z-index:5;left:50%;top:50%;width:min(340px,80%);height:205px;transform:translate(-50%,-50%);align-items:center;justify-content:center;background:#ead9b7;box-shadow:0 18px 60px #38220e35;border:1px solid #c3a67b;border-radius:3px;animation:envelope-away 1.5s both;perspective:700px}
+.letter-unseal-flap{position:absolute;inset:0 0 auto;height:55%;background:#e3cba1;clip-path:polygon(0 0,100% 0,50% 100%);transform-origin:top;animation:unseal-flap 1.5s both}
+.letter-unseal span{font:italic 16px Georgia,serif;color:#785c3e;margin-top:88px;letter-spacing:4px}
+.letter-unseal i{position:absolute;top:42%;width:35px;height:35px;border-radius:50%;background:#9e5143;color:#f3d5aa;display:grid;place-items:center;box-shadow:0 2px 4px #3c211c35}
+.memory.unsealing .letter-paper-wrap,.memory.unsealing .letter-tools{animation:letter-reveal 1.5s both}
+.paper-parchment{background:radial-gradient(ellipse at 30% 20%,#fff0c9a0,transparent 65%),repeating-linear-gradient(3deg,#ae804908 0 1px,transparent 1px 4px),#e9d5ab!important;color:#4d3928;box-shadow:inset 0 0 50px #a8783933}
+@keyframes unseal-flap{0%,25%{transform:rotateX(0)}65%,100%{transform:rotateX(175deg)}}
+@keyframes envelope-away{0%,65%{opacity:1;transform:translate(-50%,-50%)}100%{opacity:0;transform:translate(-50%,-30%) scale(.94)}}
+@keyframes letter-reveal{0%,65%{opacity:0;transform:translateY(28px)}100%{opacity:1;transform:translateY(0)}}
+@media(prefers-reduced-motion:reduce){.memory.unsealing *{animation-duration:.01ms!important}}
+.room-menu-panel .room-teleport-bar{position:static;transform:none;display:grid;grid-template-columns:1fr 1fr;padding:8px 0 0;margin-top:7px;border:0;border-top:1px solid #6d796a33;border-radius:0;background:none;box-shadow:none;white-space:normal;backdrop-filter:none}
+.room-menu-panel .teleport-pill{padding:9px 7px;font-size:12px;box-shadow:none;white-space:nowrap}
+.room-credits{display:block;padding:8px 12px;font-size:11px;color:#738071;text-decoration:none}

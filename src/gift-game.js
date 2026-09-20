@@ -141,10 +141,18 @@ export function createGiftGame({scene, boat, keys, onIslandTitleChange}) {
         </div>
       </div>
 
-      <div id="room-gift-link-bar" class="room-gift-link-bar" hidden>
-        <span class="room-link-tip">💌 此岛屿已生成邀请：</span>
+      <!-- 岛屿名字修改框（直接置于新建岛屿下方，直观醒目） -->
+      <div class="room-title-bar">
+        <label>岛屿名字 <small class="subtle">（最多 20 字，牌子支持 1-2 行大字清晰呈现）</small>
+          <input name="title" id="island-title-input" maxlength="20" required placeholder="例如：留给你的一座岛" value="留给你的一座岛">
+        </label>
+      </div>
+
+      <div id="room-gift-link-bar" class="room-gift-link-bar">
+        <span class="room-link-tip" id="room-link-tip">💌 此岛屿已生成邀请：</span>
         <a id="room-gift-link" href="#" target="_blank" rel="noopener">查看邀请</a>
         <button type="button" id="room-gift-copy" class="room-link-copy-btn">复制链接</button>
+        <span id="room-new-link-hint" class="room-new-link-hint" hidden>🌱 新岛屿：布置后点击底部「保存并生成邀请」即可生成专属新链接 ✨</span>
       </div>
 
       <p class="subtle">照片会放进小屋的相框里，信件在抵达后揭晓。</p>
@@ -154,7 +162,6 @@ export function createGiftGame({scene, boat, keys, onIslandTitleChange}) {
         <label>你是谁<input name="sender" maxlength="40" required placeholder="你的名字 / 昵称"></label>
       </div>
 
-      <label>岛屿名字<small class="subtle">（最多 20 字，牌子支持 1-2 行大字清晰呈现）</small><input name="title" maxlength="20" required placeholder="例如：留给你的一座岛" value="留给你的一座岛"></label>
       <label>纪念的日子或事情<input name="occasion" maxlength="60" placeholder="例如：相识的第 1000 天"></label>
       <label>邀请上的一句话<textarea name="greeting" maxlength="180" rows="2"></textarea></label>
 
@@ -379,12 +386,13 @@ export function createGiftGame({scene, boat, keys, onIslandTitleChange}) {
         <button id="room-edit" type="button">继续布置</button>
       </div>
     </div>
-    <div id="room-intro-hint" class="room-intro-hint" role="status">拖动环顾 · 滚轮靠近 · WASD 平移 · 点击相框、信件、海景大窗</div>
+    <div id="room-intro-hint" class="room-intro-hint" role="status">拖动环顾 · 滚轮靠近 · WASD 平移 · 点击相框、信件、海景大窗、八音盒</div>
     <div id="room-hotspot-hint" class="room-hotspot-hint" hidden></div>
     <div id="room-teleport-bar" class="room-teleport-bar" aria-label="快捷视点传送">
       <button type="button" class="teleport-pill" data-spot="table">☕ 茶几</button>
       <button type="button" class="teleport-pill" data-spot="gallery">🖼️ 照片墙</button>
       <button type="button" class="teleport-pill" data-spot="window">🌊 观海窗</button>
+      <button type="button" class="teleport-pill" data-spot="keepsakes">♫ 八音盒</button>
       <button type="button" class="teleport-pill" data-spot="door">🚪 房门</button>
     </div>
     <div id="room-joystick" class="room-joystick" hidden aria-label="移动摇杆">
@@ -400,6 +408,7 @@ export function createGiftGame({scene, boat, keys, onIslandTitleChange}) {
     <div class="letter-tools" id="letter-tools" hidden>
       <button type="button" id="letter-to-reply-btn" class="letter-reply-pill">✍️ 写回信</button>
     </div>
+    <div class="letter-unseal" aria-hidden="true"><div class="letter-unseal-flap"></div><span>给特别的你</span><i>♡</i></div>
     <div id="letter-paper-wrap" class="letter-paper-wrap paper-watercolor">
       <img id="memory-image" alt="">
       <h2 id="memory-title"></h2>
@@ -464,6 +473,7 @@ export function createGiftGame({scene, boat, keys, onIslandTitleChange}) {
   <div id="view-hint" class="view-hint">拖拽旋转视角 · 滚轮缩放</div>`;
 
   const world = createGiftWorld(scene), room = createMemoryRoom(scene);
+  $('room-menu-panel').appendChild($('room-teleport-bar'));
   const state = {phase: 'creator', difficulty: 'easy', checkpoint: 0};
   
   // ---------- 多房间数据加载与管理 ----------
@@ -528,15 +538,29 @@ export function createGiftGame({scene, boat, keys, onIslandTitleChange}) {
     }).join('');
 
     const linkBar = $('room-gift-link-bar');
+    const linkTip = $('room-link-tip');
+    const giftLink = $('room-gift-link');
+    const copyBtn = $('room-gift-copy');
+    const newHint = $('room-new-link-hint');
+
     if (linkBar) {
+      linkBar.hidden = false;
       if (draft.giftId) {
         const url = new URL(location.href);
         url.search = '?gift=' + draft.giftId;
         url.hash = '';
-        linkBar.hidden = false;
-        $('room-gift-link').href = url.href;
+        if (linkTip) linkTip.hidden = false;
+        if (giftLink) {
+          giftLink.hidden = false;
+          giftLink.href = url.href;
+        }
+        if (copyBtn) copyBtn.hidden = false;
+        if (newHint) newHint.hidden = true;
       } else {
-        linkBar.hidden = true;
+        if (linkTip) linkTip.hidden = true;
+        if (giftLink) giftLink.hidden = true;
+        if (copyBtn) copyBtn.hidden = true;
+        if (newHint) newHint.hidden = false;
       }
     }
   }
@@ -673,12 +697,21 @@ export function createGiftGame({scene, boat, keys, onIslandTitleChange}) {
   $('room-new-btn').onclick = () => {
     readForm();
     const r = createNewRoomData();
+    const index = rooms.length + 1;
+    r.title = `新岛屿 ${index}`;
+    r.recipient = '';
+    r.giftId = null;
     rooms.unshift(r);
     draft = r;
     currentRoomId = r.id;
     saveRooms();
     fillForm();
-    toast('已创建新岛屿，现在可以为另一位朋友布置了！');
+    const titleInput = $('island-title-input') || form.elements.namedItem('title');
+    if (titleInput) {
+      titleInput.focus();
+      titleInput.select();
+    }
+    toast('✨ 已创建新岛屿！请在下方输入岛屿名字并开始布置。');
   };
 
   $('room-delete-btn').onclick = () => {
@@ -840,11 +873,17 @@ export function createGiftGame({scene, boat, keys, onIslandTitleChange}) {
     $('gift-editor').close();
     room.update(gift);
     room.resetView();
+    if(!recipientMode&&draft.giftId){
+      const activeDraft=draft;
+      fetch('/api/gifts?id='+encodeURIComponent(activeDraft.giftId),{cache:'no-store'})
+        .then(async response=>{if(!response.ok)return;const saved=await response.json();if(saved.reply&&draft===activeDraft){draft.reply=saved.reply;gift.reply=saved.reply;saveRooms();}})
+        .catch(()=>{});
+    }
     $('room-menu-panel').hidden = true;
     $('room-menu').setAttribute('aria-expanded', 'false');
 
     // 绑定木地板脚步声
-    room.onFootstep = () => synth.playFootstep();
+    room.onFootstep(() => synth.playFootstep());
 
     // 播放房间背景音乐与分层环境白噪音
     const ambientTracks = gift.ambient || ['waves', 'breeze'];
@@ -854,7 +893,7 @@ export function createGiftGame({scene, boat, keys, onIslandTitleChange}) {
     if (roomMusicEnabled && gift.music && gift.music !== 'none') {
       synth.play(gift.music, true);
     } else {
-      synth.stop();
+      synth.play('none',true);
     }
 
     // 移动端展示虚拟摇杆
@@ -889,7 +928,7 @@ export function createGiftGame({scene, boat, keys, onIslandTitleChange}) {
     if (roomMusicEnabled && gift.music && gift.music !== 'none') {
       synth.play(gift.music, true);
     } else {
-      synth.stop();
+      synth.play('none',true);
     }
   };
   $('editor-preview').onclick = () => showRoom(true);
@@ -900,6 +939,8 @@ export function createGiftGame({scene, boat, keys, onIslandTitleChange}) {
     btn.onclick = () => {
       const spot = btn.dataset.spot;
       room.teleportTo(spot);
+      $('room-menu-panel').hidden=true;
+      $('room-menu').setAttribute('aria-expanded','false');
       toast(`已移动到${btn.textContent.replace(/^[^\s]+ /, '')}`);
     };
   });
@@ -958,7 +999,13 @@ export function createGiftGame({scene, boat, keys, onIslandTitleChange}) {
     window.addEventListener('touchcancel', onTouchEnd);
   }
 
-  function openLetter() {
+  let openingLetter = false;
+  async function openLetter() {
+    if(openingLetter)return;
+    openingLetter=true;
+    room.focusLetter();
+    await new Promise(resolve=>setTimeout(resolve,750));
+    if(state.phase!=='room'){openingLetter=false;return;}
     $('room-hotspot-hint').hidden = true;
     $('memory-image').hidden = true;
     $('memory-image').removeAttribute('src');
@@ -969,6 +1016,8 @@ export function createGiftGame({scene, boat, keys, onIslandTitleChange}) {
     const hasReply = !!(gift.reply?.content || draft.reply?.content);
     text('letter-to-reply-btn', hasReply ? '💌 查看回信' : '✍️ 写回信');
     $('memory-dialog').showModal();
+    $('memory-dialog').classList.add('unsealing');
+    setTimeout(()=>{$('memory-dialog').classList.remove('unsealing');openingLetter=false;},1500);
   }
 
   $('letter-to-reply-btn').onclick = () => {
@@ -1515,7 +1564,21 @@ export function createGiftGame({scene, boat, keys, onIslandTitleChange}) {
       $('room-menu').setAttribute('aria-expanded', 'false');
       const hit = room.pick(event.clientX / innerWidth * 2 - 1, 1 - event.clientY / innerHeight * 2);
       if (hit?.action === 'letter') openLetter();
-      else if (hit?.action === 'window') {
+      else if (hit?.action === 'musicbox') {
+        const playing = room.toggleMusicBox();
+        if (playing) {
+          synth.playChimeTink();
+          const candidateTracks = ['music_box', 'canon', 'starry', 'sea_breeze'];
+          const randomTrack = candidateTracks[Math.floor(Math.random() * candidateTracks.length)];
+          synth.play(randomTrack, true);
+          const trackInfo = TRACKS[randomTrack];
+          const name = trackInfo?.name.replace(/^[^\s]+ /, '') || '浪漫八音盒';
+          toast(`🎵 发条轻响，八音盒开始随机演奏《${name}》…`);
+        } else {
+          synth.stop();
+          toast('轻轻合上了八音盒。');
+        }
+      } else if (hit?.action === 'window') {
         const isOpen = room.toggleWindow();
         synth.setWindowOpen(isOpen);
         toast(isOpen ? '完全推开了木窗，清爽海风扑面而来…' : '轻轻合上了木窗。');
@@ -1535,6 +1598,7 @@ export function createGiftGame({scene, boat, keys, onIslandTitleChange}) {
       const hit = room.pick(event.clientX / innerWidth * 2 - 1, 1 - event.clientY / innerHeight * 2);
       let label = '';
       if (hit?.action === 'letter') label = '打开桌上的信';
+      else if (hit?.action === 'musicbox') label = room.getMusicBoxPlaying() ? '合上八音盒' : '打开机械八音盒 · 随机播放音乐';
       else if (hit?.action === 'window') label = room.getWindowOpen() ? '关上海景大窗' : '推开木窗 · 吹海风';
       else if (hit?.action === 'calendar') label = '查看纪念日挂历';
       else if (Number.isInteger(hit?.slot)) label = '查看相框';

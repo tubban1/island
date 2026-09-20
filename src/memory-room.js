@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import {RoundedBoxGeometry} from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import {GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader.js';
 import {createWindowView} from './window-view.js';
+import {furnishCabin} from './cabin-furnishings.js';
+import {createKeepsakes} from './cabin-keepsakes.js';
 
 export function createMemoryRoom(exterior){
  const scene=new THREE.Scene();scene.background=new THREE.Color('#222828');
@@ -10,8 +12,8 @@ export function createMemoryRoom(exterior){
  const windowView=createWindowView(exterior,{profile:new URLSearchParams(location.search).has('perf')});
  
  // 室内全景柔和环境光与温暖海岛阳光
- scene.add(new THREE.HemisphereLight('#fffaf0','#998668',1.9));
- const sun=new THREE.DirectionalLight('#ffe8be',3.6);
+ scene.add(new THREE.HemisphereLight('#fffaf0','#998668',1.35));
+ const sun=new THREE.DirectionalLight('#ffe8be',2.3);
  sun.position.set(-3.8,7.2,-7.5);
  sun.target.position.set(-3.8,0,-0.5);
  scene.add(sun,sun.target);
@@ -44,6 +46,13 @@ export function createMemoryRoom(exterior){
  const mat=(color,options={})=>new THREE.MeshStandardMaterial({color,roughness:.82,...options});
 
  // 复古原木海岛度假风格材质调色板
+ function timberTexture(){
+  const c=document.createElement('canvas');c.width=256;c.height=512;const ctx=c.getContext('2d');
+  ctx.fillStyle='#c0a07c';ctx.fillRect(0,0,256,512);
+  for(let i=0;i<155;i++){const x=i*1.73;ctx.strokeStyle=`rgba(${i%3?'72,39,16':'246,217,172'},${.035+(i%7)*.012})`;ctx.lineWidth=.4+(i%4)*.25;ctx.beginPath();ctx.moveTo(x,0);for(let y=0;y<=512;y+=8)ctx.lineTo(x+Math.sin(y*.014+i)*1.8+Math.sin(y*.05+i)*.5,y);ctx.stroke();}
+  const texture=new THREE.CanvasTexture(c);texture.colorSpace=THREE.SRGBColorSpace;texture.wrapS=texture.wrapT=THREE.RepeatWrapping;return texture;
+ }
+ const timber=timberTexture();
  const palette={
    teak:mat('#7f5533',{roughness:.52,metalness:.03}),
    teakDark:mat('#5c3a21',{roughness:.58,metalness:.02}),
@@ -57,6 +66,9 @@ export function createMemoryRoom(exterior){
    paper:mat('#fff5dc',{roughness:.92}),
    rug:mat('#cbba95',{roughness:.92,bumpMap:fabric,bumpScale:.025})
  };
+ palette.teak.map=timber;palette.teakDark.map=timber;
+ palette.teak.color.set('#d8bd96');palette.teakDark.color.set('#ac825b');
+ const keepsakes=createKeepsakes(interactiveGroup,palette);
 
  // ==================== 加载并重构 Loft 模型（复古原木海岛风） ====================
  const gltfLoader=new GLTFLoader();
@@ -77,20 +89,22 @@ export function createMemoryRoom(exterior){
 
      // 2. 地板 -> 温润做旧老柚木地板（Teak Wood）
      if(name.includes('Plane_Material.002')||matName==='Material.002'||name.includes('Plane.001__0')){
-       child.material=palette.teak.clone();
-       child.material.roughness=0.48;
+       child.material=child.material.clone();
+       child.material.color.set('#d9bf9e');child.material.metalness=0;
+       child.material.roughness=0.78;
        return;
      }
 
      // 3. 墙面与柱子 -> 海岛暖白海泥微水泥（Warm Sand Plaster）
      if(name.includes('Cube_Material.003')||matName==='Material.003'||name.includes('Cube.004')||name.includes('Cube.005')){
-       child.material=palette.plaster.clone();
+       child.material=child.material.clone();child.material.color.set('#cfb18b');
+       child.material.roughness=.86;child.material.metalness=0;
        return;
      }
 
      // 4. 金属构件、灯架、工业骨架 -> 做旧拉丝黄铜（Aged Brass）
      if(matName==='material'||matName==='Material.004'||matName==='Material.008'||name.includes('Cube.001')||name.includes('Cube.006')){
-       child.material=palette.brass.clone();
+       child.material=palette.teakDark;
        return;
      }
 
@@ -108,7 +122,7 @@ export function createMemoryRoom(exterior){
 
      // 7. 茶几、置物架、木质边柜 -> 复古深柚木/胡桃木
      if(matName==='Material.011'||matName==='Material.010'||matName==='Material.009'||matName==='Material.006'||name.includes('node_0.006')||name.includes('node_0.004')||name.includes('node_0.005')){
-       child.material=palette.teakDark.clone();
+       child.material=child.material.clone();child.material.color.set('#dbbea1');child.material.roughness=.82;child.material.metalness=0;
        return;
      }
 
@@ -119,53 +133,66 @@ export function createMemoryRoom(exterior){
    });
  }
 
- gltfLoader.load('assets/loft_interior_6_for_free.glb',gltf=>{
+ let roomAssetsStarted=false;
+ function loadRoomAssets(){
+ if(roomAssetsStarted)return;roomAssetsStarted=true;
+ furnishCabin(group,palette,()=>sun.shadow.needsUpdate=true);
+ gltfLoader.load('assets/loft-cabin.glb',gltf=>{
    loftModel=gltf.scene;
    applyCoastalVintageTheme(loftModel);
    roomModelGroup.add(loftModel);
+   sun.shadow.needsUpdate=true;
  },undefined,err=>{
    console.warn('Loft model failed to load, keeping procedural room fallback:',err);
  });
+ }
 
  // ==================== 🪟 面海大窗与实时动态海景 ====================
  // 动态海景背景板（尺寸扩大，紧贴室外落地大窗）
  const windowMaterial=new THREE.MeshBasicMaterial({map:windowView.texture});
- const windowMesh=new THREE.Mesh(new THREE.PlaneGeometry(7.2,4.6),windowMaterial);
- windowMesh.position.set(-3.8,2.4,-5.8);
+ const windowMesh=new THREE.Mesh(new THREE.PlaneGeometry(16.5,5.7),windowMaterial);
+ windowMesh.position.set(0,2.35,-6.9);
  interactiveGroup.add(windowMesh);
 
  // 左右开合活动木窗扇（完全向外推开，无中柱，拥抱海风）
  let isWindowOpen=false,windowAngle=0,targetWindowAngle=0;
  const windowLeftHinge=new THREE.Group();
- windowLeftHinge.position.set(-5.65,2.4,-5.12);
+ windowLeftHinge.position.set(-6.32,2.25,-5.12);
  interactiveGroup.add(windowLeftHinge);
- const leftCasement=new THREE.Mesh(new THREE.BoxGeometry(1.82,2.82,.035),mat('#f4ebd9',{roughness:.65}));
- leftCasement.position.set(.91,0,0);leftCasement.userData={action:'window',title:'推开海景大窗'};
+ const glass=mat('#b9dbd7',{transparent:true,opacity:.07,roughness:.12,depthWrite:false,side:THREE.DoubleSide});
+ const leftCasement=new THREE.Mesh(new THREE.PlaneGeometry(2.74,3.80),glass);
+ leftCasement.position.set(1.37,0,0);leftCasement.userData={action:'window',title:'推开海景大窗'};
  windowLeftHinge.add(leftCasement);
  const leftHandle=new THREE.Mesh(new THREE.CylinderGeometry(.01,.01,.14,8),palette.brass);
- leftHandle.position.set(1.75,0,.025);leftHandle.userData={action:'window',title:'推开海景大窗'};
+ leftHandle.position.set(2.56,-.10,.10);leftHandle.userData={action:'window',title:'推开海景大窗'};
  windowLeftHinge.add(leftHandle);
 
  const windowRightHinge=new THREE.Group();
- windowRightHinge.position.set(-1.95,2.4,-5.12);
+ windowRightHinge.position.set(-.84,2.25,-5.12);
  interactiveGroup.add(windowRightHinge);
- const rightCasement=new THREE.Mesh(new THREE.BoxGeometry(1.82,2.82,.035),mat('#f4ebd9',{roughness:.65}));
- rightCasement.position.set(-.91,0,0);rightCasement.userData={action:'window',title:'推开海景大窗'};
+ const rightCasement=new THREE.Mesh(new THREE.PlaneGeometry(2.74,3.80),glass);
+ rightCasement.position.set(-1.37,0,0);rightCasement.userData={action:'window',title:'推开海景大窗'};
  windowRightHinge.add(rightCasement);
  const rightHandle=new THREE.Mesh(new THREE.CylinderGeometry(.01,.01,.14,8),palette.brass);
- rightHandle.position.set(-1.75,0,.025);rightHandle.userData={action:'window',title:'推开海景大窗'};
+ rightHandle.position.set(-2.56,-.10,.10);rightHandle.userData={action:'window',title:'推开海景大窗'};
  windowRightHinge.add(rightHandle);
+ function sash(hinge,sign){
+  for(const x of [0,2.74]){const m=new THREE.Mesh(new THREE.BoxGeometry(.09,3.9,.13),palette.teak);m.position.set(sign*x,0,0);hinge.add(m);}
+  for(const y of [-1.9,1.9,-.52]){const m=new THREE.Mesh(new THREE.BoxGeometry(2.74,.09,.13),palette.teak);m.position.set(sign*1.37,y,0);hinge.add(m);}
+ }
+ sash(windowLeftHinge,1);sash(windowRightHinge,-1);
+ for(const x of [1.75,4.2]){const frame=new THREE.Mesh(new THREE.BoxGeometry(.10,4.05,.16),palette.teak);frame.position.set(x,2.28,-5.2);interactiveGroup.add(frame);}
 
  // 窗户点击交互热点
- const windowHotspot=new THREE.Mesh(new THREE.PlaneGeometry(4.0,3.0),new THREE.MeshBasicMaterial({transparent:true,opacity:0,depthWrite:false,side:THREE.DoubleSide}));
- windowHotspot.position.set(-3.8,2.4,-4.95);
+ const windowHotspot=new THREE.Mesh(new THREE.PlaneGeometry(5.5,3.8),new THREE.MeshBasicMaterial({transparent:true,opacity:0,depthWrite:false,side:THREE.DoubleSide}));
+ windowHotspot.position.set(-3.58,2.25,-4.95);
  windowHotspot.userData={action:'window',title:'推开海景大窗'};
  interactiveGroup.add(windowHotspot);
 
  // 柔和飘拂的半透明亚麻白纱窗帘
  const curtains=[];
- for(const x of [-5.75,-1.85]){
-  const geo=new THREE.PlaneGeometry(.92,3.3,16,24),pos=geo.attributes.position;
+ for(const x of [-6.23,-.87]){
+  const geo=new THREE.PlaneGeometry(.65,3.85,16,24),pos=geo.attributes.position;
   for(let i=0;i<pos.count;i++){
     const y=pos.getY(i),localX=pos.getX(i);
     pos.setZ(i,Math.cos(localX*43)*.065+.09*Math.cos(y*1.7));
@@ -173,7 +200,8 @@ export function createMemoryRoom(exterior){
   }
   geo.computeVertexNormals();
   const material=mat('#fff6e5',{side:THREE.DoubleSide,bumpMap:fabric,bumpScale:.008});
-  const curtain=new THREE.Mesh(geo,material);curtain.position.set(x,2.35,-4.82);
+  const curtain=new THREE.Mesh(geo,material);curtain.position.set(x,2.22,-4.82);
+  curtain.userData.rest=Float32Array.from(pos.array);
   interactiveGroup.add(curtain);curtains.push(curtain);
  }
 
@@ -188,6 +216,8 @@ export function createMemoryRoom(exterior){
  envelope.position.set(tableCenter.x+.18,tableCenter.y+.015,tableCenter.z-.12);
  envelope.rotation.y=-.08;envelope.userData.action='letter';
  interactiveGroup.add(envelope);
+ const wax=new THREE.Mesh(new THREE.CylinderGeometry(.032,.030,.009,16),mat('#a14d3d'));wax.position.set(tableCenter.x+.18,tableCenter.y+.026,tableCenter.z-.12);interactiveGroup.add(wax);
+ for(let i=0;i<4;i++){const line=new THREE.Mesh(new THREE.BoxGeometry(.24-i*.018,.002,.003),palette.teakDark);line.position.set(tableCenter.x-.1,tableCenter.y+.016,tableCenter.z+.015+i*.045);interactiveGroup.add(line);}
 
  const letterHotspot=new THREE.Mesh(new THREE.PlaneGeometry(1.6,1.4),new THREE.MeshBasicMaterial({transparent:true,opacity:0,depthWrite:false,side:THREE.DoubleSide}));
  letterHotspot.rotation.x=-Math.PI/2;
@@ -199,13 +229,14 @@ export function createMemoryRoom(exterior){
  const cx=tableCenter.x-.38,cz=tableCenter.z+.16;
  const saucer=new THREE.Mesh(new THREE.CylinderGeometry(.13,.13,.018,20),palette.ceramic);
  saucer.position.set(cx,tableCenter.y+.009,cz);interactiveGroup.add(saucer);
- const cup=new THREE.Mesh(new THREE.CylinderGeometry(.075,.058,.12,20),palette.ceramic);
+ const cup=new THREE.Mesh(new THREE.CylinderGeometry(.075,.058,.12,20,1,true),palette.ceramic);
  cup.position.set(cx,tableCenter.y+.07,cz);interactiveGroup.add(cup);
  const coffeeLiquid=new THREE.Mesh(new THREE.CylinderGeometry(.068,.068,.006,20),palette.teakDark);
  coffeeLiquid.position.set(cx,tableCenter.y+.125,cz);interactiveGroup.add(coffeeLiquid);
  const cupHandle=new THREE.Mesh(new THREE.TorusGeometry(.045,.012,6,12),palette.ceramic);
  cupHandle.position.set(cx+.075,tableCenter.y+.07,cz);cupHandle.rotation.y=Math.PI/2;
  interactiveGroup.add(cupHandle);
+ const rim=new THREE.Mesh(new THREE.TorusGeometry(.073,.005,6,24),palette.ceramic);rim.rotation.x=Math.PI/2;rim.position.set(cx,tableCenter.y+.13,cz);interactiveGroup.add(rim);
 
  // ☕ 咖啡杯袅袅热气粒子系统
  const steamGroup=new THREE.Group();
@@ -255,7 +286,7 @@ export function createMemoryRoom(exterior){
    ctx.fillStyle='#ffffff';ctx.font='bold 28px sans-serif';ctx.textAlign='center';
    ctx.fillText('OUR SPECIAL DAY',192,48);
    ctx.font='18px sans-serif';ctx.fillText('纪念日 · 岁月静好',192,82);
-   let dateStr='5.20',subText='相遇的特别时刻';
+   let dateStr='—',subText='属于我们的日子';
    if(anniversaryText){
      const match=anniversaryText.match(/(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/);
      if(match){
@@ -311,22 +342,26 @@ export function createMemoryRoom(exterior){
  const raycaster=new THREE.Raycaster();let measureStart=0,measuredFrames=0,frameRate=30;
 
  // ==================== 第一人称全景沉浸式相机系统 ====================
- const defaultEye={x:-2.8,y:1.62,z:0.6};
+ const defaultEye={x:-1.7,y:1.62,z:1.15};
  const eyePos=new THREE.Vector3(defaultEye.x,defaultEye.y,defaultEye.z);
  const targetEyePos=new THREE.Vector3(defaultEye.x,defaultEye.y,defaultEye.z);
 
- const defaultOrientation={yaw:-0.15,pitch:-0.14,fov:72};
+ const defaultOrientation={yaw:.34,pitch:-0.10,fov:68};
  let eyeYaw=defaultOrientation.yaw,targetEyeYaw=defaultOrientation.yaw;
  let eyePitch=defaultOrientation.pitch,targetEyePitch=defaultOrientation.pitch;
  let currentFov=defaultOrientation.fov,targetFov=defaultOrientation.fov;
 
  function constrainEye(){
    targetEyePos.x=THREE.MathUtils.clamp(targetEyePos.x,-5.8,4.5);
-   targetEyePos.z=THREE.MathUtils.clamp(targetEyePos.z,-3.8,3.2);
+   targetEyePos.z=THREE.MathUtils.clamp(targetEyePos.z,-4.65,3.2);
    targetEyePos.y=1.62;
+   // Keep the walking aisle clear of the daybed, desk, dining table and bar.
+   const obstacles=[[-6.5,-3.35,-4.15,-2.43],[-5.0,-2.85,-2.10,-.57],[-6.38,-4.55,2.13,3.08],[.37,2.08,-5.1,.82],[.30,3.60,1.18,3.64],[5.02,6.7,-3.7,-.55],[5.05,6.7,1.72,3.58]];
+   for(const [l,r,b,f] of obstacles){const {x,z}=targetEyePos;if(x>l&&x<r&&z>b&&z<f){const ds=[x-l,r-x,z-b,f-z],side=ds.indexOf(Math.min(...ds));if(side===0)targetEyePos.x=l;else if(side===1)targetEyePos.x=r;else if(side===2)targetEyePos.z=b;else targetEyePos.z=f;}}
  }
 
  let onFootstepCb=null;let accumulatedDist=0;
+ let lastRenderTime=null;
 
  function hotspot(x,y){
    raycaster.setFromCamera(new THREE.Vector2(x,y),camera);
@@ -341,12 +376,14 @@ export function createMemoryRoom(exterior){
      windowHotspot,
      leftCasement,
      rightCasement
+     ,...keepsakes.targets
    ].filter(Boolean);
    const hit=raycaster.intersectObjects(targets)[0];
-   return hit?hit.object.userData:null;
+   return hit&&hit.distance<7?hit.object.userData:null;
  }
 
  function update(gift){
+  loadRoomAssets();
   revision++;const current=revision;measureStart=performance.now();measuredFrames=0;
   drawCalendar(gift.anniversaryDate,gift.occasion);
   frames.forEach((photo,i)=>{
@@ -361,14 +398,18 @@ export function createMemoryRoom(exterior){
  }
 
  const SPOTS={
-   'window':{x:-3.8,y:1.62,z:-3.8,yaw:0,pitch:-0.04},
+   'window':{x:-2.2,y:1.62,z:-4.0,yaw:0,pitch:-0.04},
    'gallery':{x:-2.5,y:1.62,z:1.8,yaw:Math.PI*0.95,pitch:0.06},
-   'table':{x:-3.9,y:1.45,z:-0.4,yaw:-0.05,pitch:-0.38},
+   'table':{x:-3.9,y:1.62,z:-0.2,yaw:-0.05,pitch:-0.65},
+   'keepsakes':{x:-3.45,y:1.52,z:-0.4,yaw:-0.05,pitch:-0.52},
    'door':{x:0,y:1.62,z:2.8,yaw:0,pitch:-0.06}
  };
 
  return {
   update,windowView,
+  toggleMusicBox:()=>keepsakes.toggle(),
+  getMusicBoxPlaying:()=>keepsakes.playing,
+  focusLetter(){targetEyePos.set(-3.92,1.62,-.15);targetEyeYaw=0;targetEyePitch=-.70;targetFov=58;},
   pick:hotspot,
   onFootstep(fn){onFootstepCb=fn;},
 
@@ -438,6 +479,7 @@ export function createMemoryRoom(exterior){
   getWindowOpen(){return isWindowOpen;},
 
   resetView(){
+    keepsakes.stop();
     targetEyePos.set(defaultEye.x,defaultEye.y,defaultEye.z);
     targetEyeYaw=defaultOrientation.yaw;
     targetEyePitch=defaultOrientation.pitch;
@@ -445,6 +487,8 @@ export function createMemoryRoom(exterior){
   },
 
   render(renderer,time){
+   const delta=lastRenderTime===null?0:Math.min(.05,Math.max(0,time-lastRenderTime));lastRenderTime=time;
+   keepsakes.update(time);
    windowView.render(renderer,time);
    camera.aspect=innerWidth/innerHeight;
 
@@ -466,7 +510,7 @@ export function createMemoryRoom(exterior){
 
    // ☕ 咖啡热气升腾粒子
    for(const p of steamParticles){
-     p.age+=0.024;
+     p.age+=delta;
      if(p.age>p.maxAge){
        p.age=0;
        p.angle=Math.random()*Math.PI*2;
@@ -477,7 +521,7 @@ export function createMemoryRoom(exterior){
      p.sprite.position.set(sway,curY,Math.cos(time*2.0+p.angle)*0.035*t);
      const s=THREE.MathUtils.lerp(0.06,0.25,t);
      p.sprite.scale.set(s,s,1);
-     p.sprite.material.opacity=Math.sin(t*Math.PI)*0.36;
+     p.sprite.material.opacity=Math.sin(t*Math.PI)*0.23;
    }
 
    // 🪟 开窗向外完全推开与白纱飘动
@@ -486,7 +530,12 @@ export function createMemoryRoom(exterior){
    windowRightHinge.rotation.y=-windowAngle;
    const curSwayAmp=isWindowOpen?0.08:0.018;
    const curSwaySpeed=isWindowOpen?1.8:0.65;
-   for(let i=0;i<curtains.length;i++)curtains[i].rotation.y=Math.sin(time*curSwaySpeed+i)*curSwayAmp;
+   for(let i=0;i<curtains.length;i++){
+     const curtain=curtains[i],p=curtain.geometry.attributes.position,rest=curtain.userData.rest;
+     curtain.rotation.y=Math.sin(time*curSwaySpeed+i)*curSwayAmp;
+     for(let v=0;v<p.count;v++){const free=(1.925-rest[v*3+1])/3.85;p.setZ(v,rest[v*3+2]+Math.sin(time*curSwaySpeed+free*3+i)*free*(isWindowOpen?.22:.018));}
+     p.needsUpdate=true;
+   }
 
    renderer.render(scene,camera);
 
