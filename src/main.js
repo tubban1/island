@@ -1,6 +1,15 @@
 import islandSize from './island-size.json' with {type:'json'};
 const ISLAND_SCALE=islandSize.linearScale;
 import './style.css';
+import {clearwaterOptics} from './clearwater-optics.js';
+import {createWaterRefraction} from './water-refraction.js';
+import {createCoastalField} from './coastal-field.js';
+import {createIslandRetreat} from './island-retreat.js';
+import {createHarbourStories} from './harbour-stories.js';
+import {reshapeIslandTerrain} from './coast-shape.js';
+import {createDistantSails} from './distant-sails.js';
+import {addHarbourBlooms} from './harbour-blooms.js';
+import {ageCoastalObjects} from './coastal-age.js';
 import './gift.css';
 import {createGiftGame} from './gift-game.js';
 import { createSeagrass } from './seagrass.js';
@@ -9,6 +18,9 @@ import { createShoreSurf } from './shore-surf.js';
 import harbourLayout from './harbour-layout.json' with {type:'json'};
 import { canMove, canSail } from './navigation.js';
 import { applyHarbourPalette } from './palette.js';
+import { refineHarbourSurface } from './harbour-surfaces.js';
+import { refineHarbourGarden } from './harbour-garden.js';
+import { refineHarbourHouse } from './harbour-house.js';
 import { createBeachLife } from './beach-life.js';
 import { createFishSchools } from './fish.js';
 import { underwaterMaterials } from './underwater.js';
@@ -65,10 +77,10 @@ composer.addPass(new ShaderPass(gradingShader));
 composer.addPass(new OutputPass());
 
 // Lighting calibrated to the long palm shadows in the reference.
-const hemi=new THREE.HemisphereLight(0xfff6dd,0x5e9597,1.12);scene.add(hemi);
-const sun=new THREE.DirectionalLight(0xffefcf,2.35);sun.position.set(26,22,-15);sun.target.position.set(10,0,-2);scene.add(sun.target);sun.castShadow=true;
+const hemi=new THREE.HemisphereLight(0xfff5e6,0x7eabb3,1.12);scene.add(hemi);
+const sun=new THREE.DirectionalLight(0xffe5bb,3.0);sun.position.set(28,23,-16);sun.target.position.set(10,0,-2);scene.add(sun.target);sun.castShadow=true;
 sun.shadow.mapSize.set(2048,2048);sun.shadow.camera.left=-23;sun.shadow.camera.right=23;sun.shadow.camera.top=23;sun.shadow.camera.bottom=-23;sun.shadow.camera.near=1;sun.shadow.camera.far=80;sun.shadow.bias=-0.00015;sun.shadow.normalBias=.04;scene.add(sun);
-const fill=new THREE.DirectionalLight(0x73d9cb,.20);fill.position.set(-18,12,15);scene.add(fill);
+const fill=new THREE.DirectionalLight(0x99d8e2,.30);fill.position.set(-18,12,15);scene.add(fill);
 
 // Ocean shader. Elliptical island distance + reef halo makes the depth gradient move with the world.
 const shallowPts=[[-5,-5,2.4],[-10.5,-1.2,2.2],[-13.2,6.8,1.9],[-4,7.2,1.8],[1,9.4,1.7],[-17,-7,1.4],[-2,-11,1.5],[18,8,1.4]];
@@ -76,11 +88,12 @@ const reefUniform=`
 float reefs(vec2 p){float r=99.0;\n${shallowPts.map(([x,z,s])=>`r=min(r,length((p-vec2(${x.toFixed(2)},${z.toFixed(2)}))/vec2(${s.toFixed(2)},${(s*.72).toFixed(2)})));`).join('\n')}return r;}
 `;
 const waterMat=new THREE.ShaderMaterial({
-  uniforms:{uTime:{value:0},uCam:{value:new THREE.Vector3()}},
+  uniforms:{uTime:{value:0},uCam:{value:new THREE.Vector3()},uCoast:{value:createCoastalField()}},
   vertexShader:`varying vec3 vWorld; varying vec2 vUv; void main(){vUv=uv;vec4 w=modelMatrix*vec4(position,1.0);vWorld=w.xyz;gl_Position=projectionMatrix*viewMatrix*w;}`,
   fragmentShader:`
-    precision highp float; uniform float uTime; varying vec3 vWorld; varying vec2 vUv;
+    precision highp float; uniform float uTime; uniform vec3 uCam; uniform sampler2D uCoast; uniform sampler2D uReefScene; uniform mat4 uReefMatrix; uniform float uReefReady; varying vec3 vWorld; varying vec2 vUv;
     ${reefUniform}
+    ${clearwaterOptics}
     float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453123);}
     float noise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);return mix(mix(hash(i),hash(i+vec2(1,0)),f.x),mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x),f.y);}
     float waterField(vec2 p){
@@ -108,7 +121,8 @@ const waterMat=new THREE.ShaderMaterial({
     void main(){
       vec2 p=vWorld.xz;
       vec2 q=(p-vec2(13.5,0.0))/vec2(${10.15*ISLAND_SCALE},${7.65*ISLAND_SCALE});
-      float contour=length(q);
+      float coastDistance=(texture2D(uCoast,(p+55.0)/140.0).r-.5)*40.0;
+      float contour=1.0+coastDistance/10.0;
       // Broad bent currents and smaller sand channels remain independent of shore distance.
       // Slow coherent drift; the shoreline/depth field remains anchored to the island.
       vec2 drift=vec2(uTime*.036,-uTime*.024);
@@ -121,18 +135,18 @@ const waterMat=new THREE.ShaderMaterial({
       float waterPatch=basin*.72+channels*.28;
       float d=contour+(basin-.5)*.64+(channels-.5)*.16;
       float rd=reefs(p);
-      float sho=max(1.0-smoothstep(.83,2.08,d),(1.0-smoothstep(.0,1.72,rd))*.17);
+      float sho=max(1.0-smoothstep(.94,2.10,d),(1.0-smoothstep(.0,1.72,rd))*.17);
       float beach=1.0-smoothstep(.93,1.15,contour);
       float blueVariation=smoothstep(.24,.76,basin);
-      vec3 deep=mix(vec3(.002,.042,.15),vec3(.006,.15,.28),blueVariation);
+      vec3 deep=mix(vec3(.004,.065,.19),vec3(.008,.23,.36),blueVariation);
       deep=mix(deep,vec3(.004,.13,.29),channels*.26);
-      vec3 mid=mix(vec3(.008,.31,.39),vec3(.022,.51,.49),smoothstep(.2,.8,channels));
-      vec3 shallow=mix(vec3(.14,.59,.57),vec3(.38,.73,.63),smoothstep(.25,.78,waterPatch));
+      vec3 mid=mix(vec3(.009,.36,.46),vec3(.025,.59,.58),smoothstep(.2,.8,channels));
+      vec3 shallow=mix(vec3(.17,.65,.59),vec3(.46,.80,.68),smoothstep(.25,.78,waterPatch));
       vec3 c=mix(deep,mid,pow(sho,.90)*.90);
       c=mix(c,shallow,pow(sho,2.2)*.66);
       float lightPools=smoothstep(.46,.78,channels)*sho;
       c+=vec3(.022,.061,.055)*lightPools;
-      float cs=caustic((p-drift*1.7+current*.35)*1.12)*(.008+.19*pow(sho,1.4))*(1.0-beach*.4);
+      float cs=caustic((p-drift*1.7+current*.35)*1.12)*(.003+.15*pow(sho,1.7))*(1.0-beach*.55);
       c+=vec3(.55,.90,.85)*cs;
       float ripple=.010*sin(p.x*3.1+uTime*.42)+.008*cos(p.y*3.8-uTime*.36);
       c+=ripple*vec3(.10,.17,.16);
@@ -142,17 +156,54 @@ const waterMat=new THREE.ShaderMaterial({
       c+=vec3(.28,.62,.64)*crest*breakup*(.018+.030*sho);
       float glint=pow(max(0.0,sin(p.x*9.0+sin(p.y*7.0+uTime*.8))*cos(p.y*11.0-uTime*.65)),22.0);
       c+=vec3(.5,.8,.8)*glint*(.008+.025*sho);
+      // Small, broken wavelets wrap around the mooring post and seaward pier legs.
+      float postDistance=min(length(p-vec2(${harbourLayout.mooring.postX},${harbourLayout.mooring.postZ})),
+        min(length(p-vec2(${harbourLayout.dock.x-harbourLayout.dock.width/2},${harbourLayout.dock.z+harbourLayout.dock.length/2})),
+            length(p-vec2(${harbourLayout.dock.x+harbourLayout.dock.width/2},${harbourLayout.dock.z+harbourLayout.dock.length/2}))));
+      float postRipples=pow(.5+.5*sin(postDistance*19.-uTime*1.8),12.)
+        *smoothstep(.12,.24,postDistance)*(1.-smoothstep(.3,1.15,postDistance));
+      c+=vec3(.11,.17,.16)*postRipples*(.4+.6*noise(p*6.+uTime*.2));
       // Clear windows reveal the real sand and reef; far water conceals the seabed edge.
       float clearAlpha=mix(.33,.17,smoothstep(.25,.72,channels));
       float coverage=mix(1.0,clearAlpha,smoothstep(.035,.58,sho));
+      // Absorption conceals the finite seabed shelf before its mesh boundary.
+      coverage=max(coverage,smoothstep(3.5,7.0,coastDistance));
       // Feather the water tint over wet sand instead of starting with a cyan edge.
       vec2 shoreLocal=p-vec2(13.5,0.0);
       shoreLocal=mat2(cos(.13),-sin(.13),sin(.13),cos(.13))*shoreLocal;
       if(shoreLocal.y<0.0)shoreLocal.y/=1.27;
       float shoreRadius=length(shoreLocal/vec2(${10.15*ISLAND_SCALE},${7.65*ISLAND_SCALE}));
-      float wetBlend=smoothstep(.91,1.25,shoreRadius);
+      float wetBlend=smoothstep(-1.3,2.8,coastDistance);
       c=mix(vec3(.56,.62,.43),c,.65+.35*wetBlend);
       coverage*=smoothstep(.0,1.0,wetBlend);
+      // Fine directional normals catch the low sun without whitening the lagoon.
+      vec3 n=cwNormal(p,uTime);
+      vec3 viewDir=normalize(uCam-vWorld);
+      vec3 halfway=normalize(viewDir+normalize(vec3(20.,18.,-16.)));
+      float sparkle=pow(max(dot(n,halfway),0.),220.);
+      float smallWaves=pow(.5+.5*sin(p.x*4.2+p.y*3.8-uTime*1.1+noise(p*1.8)*12.),16.);
+      c+=vec3(.90,.71,.40)*sparkle*.19*smoothstep(.40,.73,noise(p*5.));
+      c+=vec3(.007,.018,.023)*smallWaves*(1.-sho*.7);
+      coverage=max(coverage,sparkle*.27*wetBlend);
+      float fresnel=cwFresnel(max(dot(n,viewDir),.02),1.333);
+      vec3 reflected=reflect(-viewDir,n);
+      vec3 skyReflection=mix(vec3(.29,.48,.58),vec3(.055,.23,.42),clamp(reflected.y,0.,1.));
+      if(uReefReady>.5){
+       float waterDepth=max(.08,coastDistance*.23+.28);
+       vec3 ray=refract(-viewDir,n,1./1.333);
+       vec3 flatRay=refract(-viewDir,vec3(0,1,0),1./1.333);
+       vec2 bend=(ray.xz/max(.2,-ray.y)-flatRay.xz/max(.2,-flatRay.y))*min(waterDepth,2.5);
+       vec4 reefClip=uReefMatrix*vec4(vWorld+vec3(bend.x,0.,bend.y),1.);
+       vec2 reefUv=reefClip.xy/reefClip.w*.5+.5;
+       vec3 reef=texture2D(uReefScene,clamp(reefUv,.001,.999)).rgb;
+       vec3 transmission=exp(-vec3(.23,.095,.055)*waterDepth);
+       vec3 under=reef*transmission+c*(1.-transmission);
+       float lagoon=(1.-smoothstep(3.,7.,coastDistance))*wetBlend;
+       c=mix(c,under,lagoon*.62);
+       c+=vec3(.22,.40,.34)*cs*lagoon;
+       coverage=mix(coverage,1.,lagoon);
+      }
+      c=mix(c,skyReflection,fresnel*.65*wetBlend);
       gl_FragColor=vec4(c,coverage);
 
     }`,
@@ -160,6 +211,8 @@ const waterMat=new THREE.ShaderMaterial({
 });
 // A large single plane keeps the sea continuous at every allowed orbit pitch/zoom.
 const ocean=new THREE.Mesh(new THREE.PlaneGeometry(600,600),waterMat);ocean.rotation.x=-Math.PI/2;ocean.position.y=-0.18;ocean.receiveShadow=true;scene.add(ocean);
+
+const waterRefraction=createWaterRefraction(renderer,scene,camera,ocean,waterMat.uniforms);
 
 // Soft submerged patches that read like distant sea grass / reefs.
 function softDiscTexture(){
@@ -184,6 +237,7 @@ try {
   statusEl.classList.add('error');
   throw error;
 }
+reshapeIslandTerrain(world);
 world.traverse(o=>{
   if(o.isMesh){
     o.castShadow=!['Warm lagoon sand','Island ground','Submerged sand'].includes(o.material.name);
@@ -191,6 +245,7 @@ world.traverse(o=>{
     o.frustumCulled=true;
     applyHarbourPalette(o.material);
     applyUnderwater(o.material);
+    refineHarbourSurface(o.material);
     if(o.material.name==='Warm lagoon sand')o.renderOrder=-1;
     o.material.shadowSide=THREE.FrontSide;
     o.material.flatShading=/wood|roof|rock|plaster/i.test(o.material.name);
@@ -211,7 +266,14 @@ world.traverse(o=>{
   }
 });
 boat.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});
+refineHarbourGarden(world);
+refineHarbourHouse(world);
+addHarbourBlooms(world);
 scene.add(world); scene.add(boat);
+const retreat=createIslandRetreat(world);
+const distantSails=createDistantSails(scene);
+createHarbourStories(world);
+ageCoastalObjects(world);
 createShoreSurf(scene,waterMat.uniforms.uTime);
 const beachLife=createBeachLife(scene,world);
 const turtle=createSeaTurtle(scene,world,applyUnderwater);
@@ -369,6 +431,7 @@ renderHarbourSign('留给你的一座岛');
 const signGroup = new THREE.Group();
 signGroup.position.set(harbourLayout.sign.x, 0.04, harbourLayout.sign.z);
 signGroup.rotation.y = -0.12;
+signGroup.scale.setScalar(.72);
 scene.add(signGroup);
 
 const woodPostMat = new THREE.MeshStandardMaterial({color: 0x4d3018, roughness: 0.88});
@@ -628,7 +691,7 @@ function tick(){
  const travel=hasBoatPosition?Math.hypot(boat.position.x-previousBoat.x,boat.position.z-previousBoat.z):0;
  boatMotion.x=boat.position.x;boatMotion.z=boat.position.z;boatMotion.fx=Math.sin(boat.rotation.y);boatMotion.fz=Math.cos(boat.rotation.y);
  boatMotion.speed=travel<2 && dt>0?travel/dt:0;previousBoat.copy(boat.position);hasBoatPosition=true;
- beachLife.update(t);turtle.update(dt,t);mooredBoat.position.y=.13+Math.sin(t*1.8)*.018;mooredBoat.rotation.z=Math.sin(t*1.5)*.018;
+ retreat.update(t);distantSails.update(t);waterMat.uniforms.uCam.value.copy(camera.position);beachLife.update(t);turtle.update(dt,t);mooredBoat.position.y=.13+Math.sin(t*1.8)*.018;mooredBoat.rotation.z=Math.sin(t*1.5)*.018;
   // 招牌微仰角正对俯视镜头、随海风轻微摆动动态、小信箱金旗微颤与复古壁灯呼吸微光
   const signWindX = -0.16 + Math.sin(t * 1.5) * 0.026 + Math.sin(t * 2.8) * 0.008;
   const signWindZ = Math.sin(t * 1.1) * 0.014;
@@ -642,7 +705,7 @@ function tick(){
  if(startled && fishRippleTimer<=0){surfaceRipple(startled.x,startled.z);fishRippleTimer=.7;}
  for(let i=ripples.length-1;i>=0;i--){const r=ripples[i];r.userData.life+=dt;const age=r.userData.life;r.scale.setScalar(.25+age*.65);r.material.opacity=.28*Math.max(0,1-age/2.5);if(age>2.5){scene.remove(r);r.material.dispose();ripples.splice(i,1);}}
 
- cameraFollow(fixedFrame===null?dt:1);if(game.isRoom){game.moveRoom(dt);game.renderRoom(renderer,t);}else composer.render();
+ cameraFollow(fixedFrame===null?dt:1);if(game.isRoom){game.moveRoom(dt);game.renderRoom(renderer,t);}else {waterMat.uniforms.uCam.value.copy(camera.position);waterRefraction.render();composer.render();waterRefraction.finish();}
 }
 document.getElementById('island-view')?.addEventListener('click',resetIslandView);
 function resize(){const a=innerWidth/innerHeight;camera.left=-ORTHO*a;camera.right=ORTHO*a;camera.top=ORTHO;camera.bottom=-ORTHO;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);composer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));}

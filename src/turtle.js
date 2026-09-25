@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import rings from './surf-rings.json' with {type:'json'};
+import {surfRings as rings} from './coast-shape.js';
 
 // Travel between randomly selected coasts via offshore arcs, never straight through the island.
 export function createTurtleSimulation(random=Math.random){

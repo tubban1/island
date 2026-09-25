@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import layout from './harbour-layout.json' with {type:'json'};
-import shoreline from './shoreline.json' with {type:'json'};
+import {shoreline} from './coast-shape.js';
 
 // Radius encloses the complete hull at any heading, including bow and stern.
 export const HULL_RADIUS=1.38;

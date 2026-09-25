@@ -1,9 +1,13 @@
 import * as THREE from 'three';
 import {RoundedBoxGeometry} from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
-import {GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader.js';
 import {createWindowView} from './window-view.js';
 import {furnishCabin} from './cabin-furnishings.js';
 import {createKeepsakes} from './cabin-keepsakes.js';
+import {createWeatheredWood} from './weathered-wood.js';
+import {EffectComposer} from 'three/examples/jsm/postprocessing/EffectComposer.js';
+import {SSAOPass} from 'three/examples/jsm/postprocessing/SSAOPass.js';
+import {OutputPass} from 'three/examples/jsm/postprocessing/OutputPass.js';
+import {RenderPass} from 'three/examples/jsm/postprocessing/RenderPass.js';
 
 export function createMemoryRoom(exterior){
  const scene=new THREE.Scene();scene.background=new THREE.Color('#222828');
@@ -13,16 +17,16 @@ export function createMemoryRoom(exterior){
  
  // 室内全景柔和环境光与温暖海岛阳光
  scene.add(new THREE.HemisphereLight('#fffaf0','#998668',1.35));
- const sun=new THREE.DirectionalLight('#ffe8be',2.3);
- sun.position.set(-3.8,7.2,-7.5);
- sun.target.position.set(-3.8,0,-0.5);
+ const sun=new THREE.DirectionalLight('#fff2d5',5.2);
+ sun.position.set(-10,6,-3.8);
+ sun.target.position.set(0,.1,1.4);
  scene.add(sun,sun.target);
- sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);
- Object.assign(sun.shadow.camera,{left:-9,right:9,top:9,bottom:-9,near:.1,far:24});
+ sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);
+ Object.assign(sun.shadow.camera,{left:-10,right:10,top:10,bottom:-10,near:.1,far:32});
  sun.shadow.bias=-.0003;sun.shadow.normalBias=.025;sun.shadow.autoUpdate=false;sun.shadow.needsUpdate=true;
  
  // 客厅与茶几区域的柔和暖光补光
- const warmLamp=new THREE.PointLight('#ffbe7d',3.6,10,1.8);
+ const warmLamp=new THREE.PointLight('#ffe3b7',1.5,10,1.8);
  warmLamp.position.set(-3.9,2.8,-1.35);
  scene.add(warmLamp);
  const fill=new THREE.DirectionalLight('#f9efe1',.85);
@@ -30,8 +34,8 @@ export function createMemoryRoom(exterior){
  scene.add(fill);
 
  const group=new THREE.Group();scene.add(group);
- const roomModelGroup=new THREE.Group();group.add(roomModelGroup);
  const interactiveGroup=new THREE.Group();group.add(interactiveGroup);
+ let roomComposer=null,roomRenderWidth=0,roomRenderHeight=0;
 
  function weave(){
    const c=document.createElement('canvas');c.width=c.height=128;const g=c.getContext('2d');
@@ -46,13 +50,6 @@ export function createMemoryRoom(exterior){
  const mat=(color,options={})=>new THREE.MeshStandardMaterial({color,roughness:.82,...options});
 
  // 复古原木海岛度假风格材质调色板
- function timberTexture(){
-  const c=document.createElement('canvas');c.width=256;c.height=512;const ctx=c.getContext('2d');
-  ctx.fillStyle='#c0a07c';ctx.fillRect(0,0,256,512);
-  for(let i=0;i<155;i++){const x=i*1.73;ctx.strokeStyle=`rgba(${i%3?'72,39,16':'246,217,172'},${.035+(i%7)*.012})`;ctx.lineWidth=.4+(i%4)*.25;ctx.beginPath();ctx.moveTo(x,0);for(let y=0;y<=512;y+=8)ctx.lineTo(x+Math.sin(y*.014+i)*1.8+Math.sin(y*.05+i)*.5,y);ctx.stroke();}
-  const texture=new THREE.CanvasTexture(c);texture.colorSpace=THREE.SRGBColorSpace;texture.wrapS=texture.wrapT=THREE.RepeatWrapping;return texture;
- }
- const timber=timberTexture();
  const palette={
    teak:mat('#7f5533',{roughness:.52,metalness:.03}),
    teakDark:mat('#5c3a21',{roughness:.58,metalness:.02}),
@@ -66,85 +63,18 @@ export function createMemoryRoom(exterior){
    paper:mat('#fff5dc',{roughness:.92}),
    rug:mat('#cbba95',{roughness:.92,bumpMap:fabric,bumpScale:.025})
  };
- palette.teak.map=timber;palette.teakDark.map=timber;
- palette.teak.color.set('#d8bd96');palette.teakDark.color.set('#ac825b');
+ const agedWood=createWeatheredWood();
+ Object.assign(palette.teak,agedWood);Object.assign(palette.teakDark,agedWood);
+ palette.teak.color.set('#e8bb83');palette.teakDark.color.set('#ae7848');
+ palette.plaster.color.set('#eeeee0');palette.rug.color.set('#b8b49c');
+ palette.rug.map=fabric;palette.rug.bumpScale=.012;
  const keepsakes=createKeepsakes(interactiveGroup,palette);
 
- // ==================== 加载并重构 Loft 模型（复古原木海岛风） ====================
- const gltfLoader=new GLTFLoader();
- let loftModel=null;
-
- function applyCoastalVintageTheme(root){
-   root.traverse(child=>{
-     if(!child.isMesh)return;
-     child.castShadow=true;child.receiveShadow=true;
-     const name=child.name||'';
-     const matName=child.material?.name||'';
-
-     // 1. 外部天球/HDRI 球完全隐藏，透出窗外真实动态海洋
-     if(name.includes('Sphere')||matName.includes('Material.017')){
-       child.visible=false;
-       return;
-     }
-
-     // 2. 地板 -> 温润做旧老柚木地板（Teak Wood）
-     if(name.includes('Plane_Material.002')||matName==='Material.002'||name.includes('Plane.001__0')){
-       child.material=child.material.clone();
-       child.material.color.set('#d9bf9e');child.material.metalness=0;
-       child.material.roughness=0.78;
-       return;
-     }
-
-     // 3. 墙面与柱子 -> 海岛暖白海泥微水泥（Warm Sand Plaster）
-     if(name.includes('Cube_Material.003')||matName==='Material.003'||name.includes('Cube.004')||name.includes('Cube.005')){
-       child.material=child.material.clone();child.material.color.set('#cfb18b');
-       child.material.roughness=.86;child.material.metalness=0;
-       return;
-     }
-
-     // 4. 金属构件、灯架、工业骨架 -> 做旧拉丝黄铜（Aged Brass）
-     if(matName==='material'||matName==='Material.004'||matName==='Material.008'||name.includes('Cube.001')||name.includes('Cube.006')){
-       child.material=palette.teakDark;
-       return;
-     }
-
-     // 5. 沙发与软垫 -> 燕麦色天然粗织亚麻（Boho Linen）
-     if(matName==='Material.007'||matName==='Material.005'||name.includes('node_0.002')||name.includes('node_0_Material.005')){
-       child.material=palette.linen.clone();
-       return;
-     }
-
-     // 6. 地毯 -> 波西米亚剑麻编织地毯
-     if(name.includes('Plane.002')||matName==='Material.012'){
-       child.material=palette.rug.clone();
-       return;
-     }
-
-     // 7. 茶几、置物架、木质边柜 -> 复古深柚木/胡桃木
-     if(matName==='Material.011'||matName==='Material.010'||matName==='Material.009'||matName==='Material.006'||name.includes('node_0.006')||name.includes('node_0.004')||name.includes('node_0.005')){
-       child.material=child.material.clone();child.material.color.set('#dbbea1');child.material.roughness=.82;child.material.metalness=0;
-       return;
-     }
-
-     // 其余部件采用柔和暖调微调
-     if(child.material){
-       child.material.roughness=Math.max(child.material.roughness||0.5,0.45);
-     }
-   });
- }
-
+ // The reference interior is built once; original imported assets stay on disk.
  let roomAssetsStarted=false;
  function loadRoomAssets(){
- if(roomAssetsStarted)return;roomAssetsStarted=true;
- furnishCabin(group,palette,()=>sun.shadow.needsUpdate=true);
- gltfLoader.load('assets/loft-cabin.glb',gltf=>{
-   loftModel=gltf.scene;
-   applyCoastalVintageTheme(loftModel);
-   roomModelGroup.add(loftModel);
-   sun.shadow.needsUpdate=true;
- },undefined,err=>{
-   console.warn('Loft model failed to load, keeping procedural room fallback:',err);
- });
+  if(roomAssetsStarted)return;roomAssetsStarted=true;
+  furnishCabin(group,palette,()=>sun.shadow.needsUpdate=true);
  }
 
  // ==================== 🪟 面海大窗与实时动态海景 ====================
@@ -191,7 +121,7 @@ export function createMemoryRoom(exterior){
 
  // 柔和飘拂的半透明亚麻白纱窗帘
  const curtains=[];
- for(const x of [-6.23,-.87]){
+ for(const x of [-6.23,6.20]){
   const geo=new THREE.PlaneGeometry(.65,3.85,16,24),pos=geo.attributes.position;
   for(let i=0;i<pos.count;i++){
     const y=pos.getY(i),localX=pos.getX(i);
@@ -259,7 +189,7 @@ export function createMemoryRoom(exterior){
 
  // ==================== 📅 纪念日挂历 ====================
  const calendarGroup=new THREE.Group();
- calendarGroup.position.set(-6.55,2.15,-1.35);
+ calendarGroup.position.set(-6.48,2.15,1.5);
  calendarGroup.rotation.y=Math.PI/2;
  interactiveGroup.add(calendarGroup);
 
@@ -275,7 +205,7 @@ export function createMemoryRoom(exterior){
  calBacking.userData={action:'calendar',title:'纪念日挂历'};
 
  const calendarHotspot=new THREE.Mesh(new THREE.PlaneGeometry(.7,.95),new THREE.MeshBasicMaterial({transparent:true,opacity:0,depthWrite:false,side:THREE.DoubleSide}));
- calendarHotspot.position.set(-6.5,2.15,-1.35);calendarHotspot.rotation.y=Math.PI/2;
+ calendarHotspot.position.set(-6.43,2.15,1.5);calendarHotspot.rotation.y=Math.PI/2;
  calendarHotspot.userData={action:'calendar',title:'纪念日挂历'};
  interactiveGroup.add(calendarHotspot);
 
@@ -316,7 +246,7 @@ export function createMemoryRoom(exterior){
    [-2.1,2.95,3.92,Math.PI,1.42,1.12],
    [-0.6,2.7,3.92,Math.PI,1.05,1.32],
    [1.0,2.8,3.92,Math.PI,1.25,1.45],
-   [-6.55,3.15,0.8,Math.PI/2,1.15,1.35]
+   [-6.48,3.15,2.7,Math.PI/2,1.15,1.35]
  ];
  const frames=[],texLoader=new THREE.TextureLoader();let revision=0;
  function placeholder(index){
@@ -342,11 +272,11 @@ export function createMemoryRoom(exterior){
  const raycaster=new THREE.Raycaster();let measureStart=0,measuredFrames=0,frameRate=30;
 
  // ==================== 第一人称全景沉浸式相机系统 ====================
- const defaultEye={x:-1.7,y:1.62,z:1.15};
+ const defaultEye={x:-.3,y:1.62,z:2.4};
  const eyePos=new THREE.Vector3(defaultEye.x,defaultEye.y,defaultEye.z);
  const targetEyePos=new THREE.Vector3(defaultEye.x,defaultEye.y,defaultEye.z);
 
- const defaultOrientation={yaw:.34,pitch:-0.10,fov:68};
+ const defaultOrientation={yaw:.03,pitch:-0.08,fov:84};
  let eyeYaw=defaultOrientation.yaw,targetEyeYaw=defaultOrientation.yaw;
  let eyePitch=defaultOrientation.pitch,targetEyePitch=defaultOrientation.pitch;
  let currentFov=defaultOrientation.fov,targetFov=defaultOrientation.fov;
@@ -356,7 +286,7 @@ export function createMemoryRoom(exterior){
    targetEyePos.z=THREE.MathUtils.clamp(targetEyePos.z,-4.65,3.2);
    targetEyePos.y=1.62;
    // Keep the walking aisle clear of the daybed, desk, dining table and bar.
-   const obstacles=[[-6.5,-3.35,-4.15,-2.43],[-5.0,-2.85,-2.10,-.57],[-6.38,-4.55,2.13,3.08],[.37,2.08,-5.1,.82],[.30,3.60,1.18,3.64],[5.02,6.7,-3.7,-.55],[5.05,6.7,1.72,3.58]];
+   const obstacles=[[-6.5,-2.40,-3.95,-2.48],[-6.5,-4.95,-2.5,-.35],[-5.0,-2.85,-2.10,-.57],[-6.38,-4.55,2.13,3.08],[2.30,5.70,-2.30,2.45],[3.25,5.40,-4.65,-2.75],[-2.95,-1.50,-.25,1.15],[-1.4,2.7,3.03,4.2]];
    for(const [l,r,b,f] of obstacles){const {x,z}=targetEyePos;if(x>l&&x<r&&z>b&&z<f){const ds=[x-l,r-x,z-b,f-z],side=ds.indexOf(Math.min(...ds));if(side===0)targetEyePos.x=l;else if(side===1)targetEyePos.x=r;else if(side===2)targetEyePos.z=b;else targetEyePos.z=f;}}
  }
 
@@ -537,7 +467,21 @@ export function createMemoryRoom(exterior){
      p.needsUpdate=true;
    }
 
-   renderer.render(scene,camera);
+   // Contact shading anchors cushions, wicker and furniture feet to surfaces.
+   // Small screens keep the direct renderer to avoid extra full-screen passes.
+   if(innerWidth>=900){
+    if(!roomComposer){
+     roomComposer=new EffectComposer(renderer);roomComposer.setPixelRatio(1);
+     const ao=new SSAOPass(scene,camera,innerWidth,innerHeight,12);
+     ao.kernelRadius=.22;ao.minDistance=.002;ao.maxDistance=.10;
+     roomComposer.addPass(new RenderPass(scene,camera));roomComposer.addPass(ao);roomComposer.addPass(new OutputPass());
+    }
+    if(roomRenderWidth!==innerWidth||roomRenderHeight!==innerHeight){
+     roomRenderWidth=innerWidth;roomRenderHeight=innerHeight;
+     const scale=Math.min(1,1440/innerWidth);roomComposer.setSize(Math.round(innerWidth*scale),Math.round(innerHeight*scale));
+    }
+    roomComposer.render();
+   }else renderer.render(scene,camera);
 
    const now=performance.now();measuredFrames++;
    if(now-measureStart>=1000){

@@ -6,7 +6,7 @@ import {execFileSync} from 'node:child_process';
 // Preserve the supplied originals; ship only the furnishings used by the cabin.
 const jobs=[
  ['tiny_isometric_room','tiny-furnishings',name=>!/^room_|^ray_|^shutter_|^window_|^laptop_|^sock_|^shoe_|^photos_/.test(name)],
- ['loft_interior_6_for_free','loft-cabin',name=>!/^Sphere|^Plane\.(00[3-9]|010|011)|^Cube\.(001|002|007)|^node_0_Material|^node_0\.00[1236]/.test(name)]
+ ['loft_interior_6_for_free','loft-cabin',name=>/^Plane_Material\.002|^Cube\.00[56]_|^node_0\.00[45]_/.test(name)]
 ];
 for(const [source,target,keep] of jobs){
  const original=fs.readFileSync(`public/assets/${source}.glb`);

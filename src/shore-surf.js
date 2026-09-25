@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import rings from './surf-rings.json' with {type:'json'};
+import {surfRings as rings} from './coast-shape.js';
 
 // Follow the generated sloping beach, including the expanded rear shoreline.
 export function createShoreSurf(scene,time){
@@ -46,9 +46,10 @@ export function createShoreSurf(scene,time){
    float cells=abs(sin(s*5.4+sin(t*48.-uTime*.8))*sin(t*60.+sin(s*3.3+uTime*.4)));
    float lace=pow(1.-cells,8.);
    float behind=smoothstep(front-.005,front+.065,t)*(1.-smoothstep(front+.10,front+.26,t));
-   float broken=mix(.42,1.,smoothstep(.27,.75,noise(coast*12.+vec2(eventId,layer*8.))));
+   float broken=mix(.12,1.,smoothstep(.27,.75,noise(coast*12.+vec2(eventId,layer*8.))));
    float amplitude=life*mix(.50,1.20,strength)*broken/(1.+layer*.28);
-   foam+=(edge*(.38+.62*lace)+behind*lace*.43)*amplitude;
+   float fragments=smoothstep(.22,.66,noise(vec2(s*3.7,t*53.)+vec2(uTime*.13,layer*9.)));
+   foam+=(edge*(.20+.65*lace)*fragments+behind*lace*.36)*amplitude;
    wash+=behind*life*.055;
   }
   float fade=smoothstep(.08,.22,t)*(1.-smoothstep(.76,1.,t));

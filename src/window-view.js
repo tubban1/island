@@ -4,8 +4,22 @@ import * as THREE from 'three';
 export function createWindowView(exterior,{profile=false}={}){
  const width=960,height=384;
  const target=new THREE.WebGLRenderTarget(width,height,{type:THREE.HalfFloatType,depthBuffer:true,stencilBuffer:false,generateMipmaps:false});
- const camera=new THREE.PerspectiveCamera(58,width/height,.2,95);
- camera.position.set(7.5,5,12);camera.lookAt(3,-4,24);
+ const camera=new THREE.PerspectiveCamera(58,width/height,.15,2400);
+ // Stand just outside the cabin: beach below, open water ahead, horizon above.
+ camera.position.set(18.8,1.4,5.8);camera.lookAt(40,-12,95);
+ camera.layers.enable(1);
+ const distanceScenery=new THREE.Group();exterior.add(distanceScenery);
+ const sky=new THREE.Mesh(new THREE.SphereGeometry(1800,24,16),new THREE.ShaderMaterial({
+  side:THREE.BackSide,depthWrite:false,
+  vertexShader:'varying vec3 direction;void main(){direction=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
+  fragmentShader:'varying vec3 direction;void main(){float h=normalize(direction).y;vec3 c=mix(vec3(.78,.88,.93),vec3(.18,.48,.70),smoothstep(0.,.36,h));gl_FragColor=vec4(c,1.);}'
+ }));sky.layers.set(1);distanceScenery.add(sky);
+ // Extend the sea beyond the island's detailed water plane. The near edge lies
+ // below that plane; haze gently joins distant water to the sky.
+ const farSea=new THREE.Mesh(new THREE.PlaneGeometry(3600,3600),new THREE.ShaderMaterial({
+  vertexShader:'varying vec3 world;void main(){vec4 p=modelMatrix*vec4(position,1.);world=p.xyz;gl_Position=projectionMatrix*viewMatrix*p;}',
+  fragmentShader:'varying vec3 world;void main(){float d=length(world.xz-cameraPosition.xz);vec3 c=mix(vec3(.025,.30,.46),vec3(.72,.86,.89),smoothstep(100.,1400.,d));gl_FragColor=vec4(c,1.);}'
+ }));farSea.rotation.x=-Math.PI/2;farSea.position.y=-.195;farSea.layers.set(1);distanceScenery.add(farSea);
  let last=-Infinity,enabled=true,hasFrame=false,cpuMs=0,renders=0,gpuMs=null,drawCalls=0,triangles=0,extension,queries=[];
  return {
   texture:target.texture,width,height,
@@ -22,6 +36,6 @@ export function createWindowView(exterior,{profile=false}={}){
    try{renderer.shadowMap.autoUpdate=!hasFrame;renderer.setRenderTarget(target);renderer.render(exterior,camera);drawCalls=renderer.info.render.calls;triangles=renderer.info.render.triangles;}finally{if(query){gl.endQuery(extension.TIME_ELAPSED_EXT);queries.push(query);}renderer.setRenderTarget(previous);renderer.shadowMap.autoUpdate=shadows;}
    const elapsed=performance.now()-start;cpuMs=renders===0?elapsed:cpuMs*.9+elapsed*.1;renders++;hasFrame=true;last=time;return true;
   },
-  dispose(){target.dispose();}
+  dispose(){target.dispose();exterior.remove(distanceScenery);for(const mesh of [sky,farSea]){mesh.geometry.dispose();mesh.material.dispose();}}
  };
 }
