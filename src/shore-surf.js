@@ -41,21 +41,21 @@ export function createShoreSurf(scene,time){
    float irregular=(noise(coast*19.+vec2(uTime*.15,layer*5.))-.5)*.07;
    front+=irregular;
    float life=smoothstep(.0,.09,age)*(1.-smoothstep(.53,1.,age));
-   float width=mix(.018,.044,strength);
+   float width=mix(.025,.052,strength);
    float edge=exp(-pow((t-front)/width,2.));
    float cells=abs(sin(s*5.4+sin(t*48.-uTime*.8))*sin(t*60.+sin(s*3.3+uTime*.4)));
    float lace=pow(1.-cells,8.);
    float behind=smoothstep(front-.005,front+.065,t)*(1.-smoothstep(front+.10,front+.26,t));
-   float broken=mix(.12,1.,smoothstep(.27,.75,noise(coast*12.+vec2(eventId,layer*8.))));
+   float broken=mix(.32,1.,smoothstep(.27,.75,noise(coast*12.+vec2(eventId,layer*8.))));
    float amplitude=life*mix(.50,1.20,strength)*broken/(1.+layer*.28);
-   float fragments=smoothstep(.22,.66,noise(vec2(s*3.7,t*53.)+vec2(uTime*.13,layer*9.)));
-   foam+=(edge*(.20+.65*lace)*fragments+behind*lace*.36)*amplitude;
+   float fragments=.35+.65*smoothstep(.22,.66,noise(vec2(s*3.7,t*53.)+vec2(uTime*.13,layer*9.)));
+   foam+=(edge*(.52+.48*lace)*fragments+behind*lace*.48)*amplitude;
    wash+=behind*life*.055;
   }
   float fade=smoothstep(.08,.22,t)*(1.-smoothstep(.76,1.,t));
   // Only foam contributes tint: transparent gaps show the same ocean underneath.
-  float alpha=(1.-exp(-foam*.95))*fade;
-  gl_FragColor=vec4(vec3(.87,.95,.90),alpha);
+  float alpha=(1.-exp(-foam*2.5))*fade;
+  gl_FragColor=vec4(vec3(.97,.99,.95),alpha);
  }`});
  const surf=new THREE.Mesh(geometry,material);surf.renderOrder=3;scene.add(surf);return surf;
 }

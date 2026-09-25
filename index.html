@@ -82,6 +82,168 @@
     })();
   </script>
 
+  <style>
+    /* 立即渲染的优雅海岛起航加载动画 */
+    #loading-screen {
+      position: fixed;
+      inset: 0;
+      z-index: 99999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle at 50% 38%, #155753 0%, #0d3d3a 55%, #062624 100%);
+      color: #fff7df;
+      font-family: Inter, -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+      user-select: none;
+      transition: opacity 0.65s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.65s ease;
+    }
+    #loading-screen.fade-out {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+    .loading-card {
+      width: min(420px, calc(100vw - 36px));
+      padding: 36px 28px 30px;
+      background: rgba(255, 248, 233, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      backdrop-filter: blur(24px) saturate(140%);
+      -webkit-backdrop-filter: blur(24px) saturate(140%);
+      border-radius: 28px;
+      box-shadow: 0 24px 60px rgba(0, 30, 26, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 18px;
+    }
+    .loading-art {
+      position: relative;
+      width: 110px;
+      height: 74px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .loading-sun {
+      position: absolute;
+      top: 2px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: radial-gradient(circle, #ffe6a3 25%, #f4ad55 80%, rgba(244, 173, 85, 0) 100%);
+      filter: drop-shadow(0 0 16px rgba(255, 222, 140, 0.7));
+      opacity: 0.88;
+    }
+    .loading-boat {
+      position: relative;
+      z-index: 2;
+      width: 52px;
+      height: 52px;
+      animation: boatBob 2.6s ease-in-out infinite;
+    }
+    .boat-svg {
+      width: 100%;
+      height: 100%;
+      filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.35));
+    }
+    @keyframes boatBob {
+      0%, 100% { transform: translateY(0) rotate(0deg); }
+      32% { transform: translateY(-5px) rotate(-3.5deg); }
+      68% { transform: translateY(3px) rotate(2.5deg); }
+    }
+    .loading-waves {
+      position: absolute;
+      bottom: 8px;
+      left: 0;
+      right: 0;
+      height: 16px;
+      overflow: hidden;
+      z-index: 1;
+    }
+    .wave {
+      position: absolute;
+      bottom: 0;
+      left: -50%;
+      width: 200%;
+      height: 8px;
+      background: radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.45), rgba(46, 175, 163, 0.15));
+      border-radius: 50%;
+      animation: waveSlide 2.8s linear infinite;
+    }
+    .wave-2 {
+      bottom: 3px;
+      opacity: 0.55;
+      animation: waveSlide 4.2s linear reverse infinite;
+    }
+    @keyframes waveSlide {
+      from { transform: translateX(0); }
+      to { transform: translateX(25%); }
+    }
+    .loading-brand {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .loading-title {
+      font-family: Georgia, "Songti SC", serif;
+      font-size: 20px;
+      font-weight: 600;
+      color: #fff9e6;
+      letter-spacing: 2px;
+      margin: 0;
+      text-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+    }
+    .loading-subtitle {
+      font-size: 11px;
+      color: #c9e3dc;
+      letter-spacing: 1px;
+      margin: 0;
+      opacity: 0.85;
+      line-height: 1.5;
+    }
+    .loading-bar-wrap {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+    }
+    .loading-bar {
+      width: 100%;
+      height: 6px;
+      background: rgba(0, 0, 0, 0.32);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      border-radius: 8px;
+      overflow: hidden;
+      position: relative;
+    }
+    .loading-bar-fill {
+      height: 100%;
+      width: 5%;
+      background: linear-gradient(90deg, #3db8ab, #f6df9b);
+      border-radius: 8px;
+      box-shadow: 0 0 12px rgba(81, 207, 192, 0.65);
+      transition: width 0.28s ease-out;
+    }
+    .loading-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11px;
+      color: #b2d2cb;
+    }
+    .loading-hint {
+      letter-spacing: 0.3px;
+    }
+    .loading-pct {
+      font-family: "SF Mono", Monaco, Consolas, monospace;
+      font-weight: 700;
+      color: #f7dfa5;
+    }
+  </style>
+
   <script type="module" src="/src/main.js"></script>
 </head>
 <body>
@@ -92,6 +254,40 @@
     <img src="/share-whatsapp.jpg" width="800" height="800" alt="WhatsApp 分享图" />
     <img src="/share-instagram.jpg" width="1080" height="1080" alt="Instagram 帖子图" />
     <img src="/share-instagram-story.jpg" width="1080" height="1920" alt="Instagram 故事图" />
+  </div>
+
+  <!-- 网页首屏加载动画遮罩 -->
+  <div id="loading-screen" class="loading-screen" aria-live="polite">
+    <div class="loading-card">
+      <div class="loading-art">
+        <div class="loading-sun"></div>
+        <div class="loading-waves">
+          <div class="wave wave-1"></div>
+          <div class="wave wave-2"></div>
+        </div>
+        <div class="loading-boat">
+          <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="boat-svg" aria-hidden="true">
+            <path d="M10 42L18 54H46L54 42H10Z" fill="#FBF8EE" stroke="#168B82" stroke-width="2.5" stroke-linejoin="round"/>
+            <path d="M19 42V23L33 13V42H19Z" fill="#22675C"/>
+            <path d="M35 19L47 37H35V19Z" fill="#E24B45"/>
+            <circle cx="33" cy="13" r="2.5" fill="#FFE7AA"/>
+          </svg>
+        </div>
+      </div>
+      <div class="loading-brand">
+        <h1 class="loading-title">The Atoll · 岛屿与回忆</h1>
+        <p class="loading-subtitle">「 把回忆藏进一座岛，只等一个人抵达 」</p>
+      </div>
+      <div class="loading-bar-wrap">
+        <div class="loading-bar">
+          <div id="loading-bar-fill" class="loading-bar-fill" style="width: 5%"></div>
+        </div>
+        <div class="loading-meta">
+          <span id="loading-hint" class="loading-hint">正在唤醒碧蓝海浪与阳光…</span>
+          <span id="loading-pct" class="loading-pct">5%</span>
+        </div>
+      </div>
+    </div>
   </div>
 
   <div id="stage" aria-label="小岛场景。点击海面或使用方向键驾驶小船。"></div>

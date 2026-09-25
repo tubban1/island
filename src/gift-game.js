@@ -91,8 +91,8 @@ export function createGiftGame({scene, boat, keys, onIslandTitleChange}) {
     </div>
   </header>
 
-  <section id="creator-intro" class="intro-card">
-    <button id="intro-toggle" class="intro-toggle" type="button" aria-expanded="true" aria-label="收起说明" title="收起说明">−</button>
+  <section id="creator-intro" class="intro-card is-collapsed">
+    <button id="intro-toggle" class="intro-toggle" type="button" aria-expanded="false" aria-label="展开说明" title="展开说明">+</button>
     <span class="eyebrow">把回忆藏进一座岛</span>
     <h1>有一座小岛，<br>只等一个人抵达。</h1>
     <p>装好你们的照片，写下想说的话。<br>让 TA 穿过海浪，找到属于你们的惊喜。</p>
@@ -785,13 +785,19 @@ export function createGiftGame({scene, boat, keys, onIslandTitleChange}) {
     $('gift-editor').showModal();
   }
 
-  $('intro-toggle').onclick = () => {
+  $('intro-toggle').onclick = (e) => {
+    e?.stopPropagation();
     const card = $('creator-intro');
     const collapsed = card.classList.toggle('is-collapsed');
     $('intro-toggle').textContent = collapsed ? '+' : '−';
     $('intro-toggle').setAttribute('title', collapsed ? '展开说明' : '收起说明');
     $('intro-toggle').setAttribute('aria-label', collapsed ? '展开说明' : '收起说明');
     $('intro-toggle').setAttribute('aria-expanded', String(!collapsed));
+  };
+  $('creator-intro').onclick = () => {
+    if ($('creator-intro').classList.contains('is-collapsed')) {
+      $('intro-toggle').click();
+    }
   };
   $('create-start').onclick = editor;
   $('gift-edit').onclick = editor;

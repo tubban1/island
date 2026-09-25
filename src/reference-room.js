@@ -22,7 +22,7 @@ export function furnishReferenceRoom(parent,palette,onReady){
  function add(geometry,material,pos,scale,rotation){const m=new THREE.Mesh(geometry,material);m.position.set(...pos);if(scale)m.scale.set(...scale);if(rotation)m.rotation.set(...rotation);m.castShadow=m.receiveShadow=true;room.add(m);return m;}
  function box(w,h,d,x,y,z,m=timber,r=.035){
   if(m===timber)m=wornTimber;else if(m===dark)m=wornDark;
-  const geometry=new RoundedBoxGeometry(w,h,d,2,Math.min(r,w/3,h/3,d/3));
+  const geometry=new RoundedBoxGeometry(w,h,d,r>=.1?5:2,Math.min(r,w/3,h/3,d/3));
   if(m.userData.chippedPaint){
    const p=geometry.attributes.position,edge=new Float32Array(p.count);
    for(let i=0;i<p.count;i++){
@@ -31,6 +31,13 @@ export function furnishReferenceRoom(parent,palette,onReady){
     edge[i]=1-THREE.MathUtils.smoothstep(distances[1],.004,.036);
    }
    geometry.setAttribute('wearEdge',new THREE.BufferAttribute(edge,1));
+   // Small hand-worn irregularities affect the silhouette, not just the colour.
+   for(let i=0;i<p.count;i++){
+    const px=p.getX(i),py=p.getY(i),pz=p.getZ(i),wear=edge[i];
+    const amount=Math.min(.005,Math.min(w,h,d)*.035)*wear;
+    p.setXYZ(i,px+Math.sin(py*17+pz*11+x)*amount,py+Math.sin(px*13+pz*19+z)*amount*.5,pz+Math.sin(px*15+py*9)*amount);
+   }
+   geometry.computeVertexNormals();
   }
   return add(geometry,m,[x,y,z]);
  }
@@ -40,7 +47,19 @@ export function furnishReferenceRoom(parent,palette,onReady){
  function tube(points,r,m){return add(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points.map(p=>new THREE.Vector3(...p))),Math.max(12,points.length*3),r,5,false),m,[0,0,0]);}
  function leg(x,y,z,h=.45){box(.10,h,.10,x,y,z,timber,.018);}
  function ring(x,y,z,r,t,m=rope){const o=add(new THREE.TorusGeometry(r,t,5,48),m,[x,y,z]);o.rotation.x=Math.PI/2;return o;}
- function cushion(w,h,d,x,y,z,m,angle=0){const o=box(w,h,d,x,y,z,m,.13);o.rotation.set(-.13,angle,.035*Math.sin(x*8));return o;}
+ function cushion(w,h,d,x,y,z,m,angle=0){
+  const o=box(w,h,d,x,y,z,m,.13),p=o.geometry.attributes.position;
+  for(let i=0;i<p.count;i++){
+   const px=p.getX(i),py=p.getY(i),pz=p.getZ(i),u=px/(w*.5),v=pz/(d*.5);
+   const top=THREE.MathUtils.smoothstep(py/h,-.1,.4);
+   const sit=Math.exp(-u*u*3.-v*v*3.)*Math.min(.045,h*.13);
+   const crease=Math.sin(u*24.+v*3.)*Math.exp(-Math.pow((Math.abs(v)-.76)*8.,2))*.009;
+   p.setY(i,py-top*(sit+crease));
+   p.setZ(i,pz+Math.sin(u*13.+py*9.)*.006*(1-Math.min(1,Math.abs(u))));
+  }
+  o.geometry.computeVertexNormals();o.rotation.set(-.13,angle,.035*Math.sin(x*8));return o;
+ }
+
  function basket(x,y,z,r=.36,h=.48){
   add(new THREE.CylinderGeometry(r*.96,r*.82,h,24),rattan,[x,y+h/2,z]);
   for(let j=0;j<12;j++)ring(x,y+.025+j*h/12,z,r*(.83+j*.011),.016,rope);

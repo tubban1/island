@@ -167,7 +167,9 @@ const waterMat=new THREE.ShaderMaterial({
       float clearAlpha=mix(.33,.17,smoothstep(.25,.72,channels));
       float coverage=mix(1.0,clearAlpha,smoothstep(.035,.58,sho));
       // Absorption conceals the finite seabed shelf before its mesh boundary.
-      coverage=max(coverage,smoothstep(3.5,7.0,coastDistance));
+      float opticalDistance=max(0.,coastDistance+(basin-.5)*1.25+(channels-.5)*.40);
+      float depthBlend=smoothstep(.9,8.5,opticalDistance);
+      coverage=max(coverage,depthBlend);
       // Feather the water tint over wet sand instead of starting with a cyan edge.
       vec2 shoreLocal=p-vec2(13.5,0.0);
       shoreLocal=mat2(cos(.13),-sin(.13),sin(.13),cos(.13))*shoreLocal;
@@ -189,7 +191,7 @@ const waterMat=new THREE.ShaderMaterial({
       vec3 reflected=reflect(-viewDir,n);
       vec3 skyReflection=mix(vec3(.29,.48,.58),vec3(.055,.23,.42),clamp(reflected.y,0.,1.));
       if(uReefReady>.5){
-       float waterDepth=max(.08,coastDistance*.23+.28);
+       float waterDepth=max(.08,opticalDistance*.23+.28);
        vec3 ray=refract(-viewDir,n,1./1.333);
        vec3 flatRay=refract(-viewDir,vec3(0,1,0),1./1.333);
        vec2 bend=(ray.xz/max(.2,-ray.y)-flatRay.xz/max(.2,-flatRay.y))*min(waterDepth,2.5);
@@ -198,12 +200,16 @@ const waterMat=new THREE.ShaderMaterial({
        vec3 reef=texture2D(uReefScene,clamp(reefUv,.001,.999)).rgb;
        vec3 transmission=exp(-vec3(.23,.095,.055)*waterDepth);
        vec3 under=reef*transmission+c*(1.-transmission);
-       float lagoon=(1.-smoothstep(3.,7.,coastDistance))*wetBlend;
+       float lagoon=(1.-depthBlend)*wetBlend;
        c=mix(c,under,lagoon*.62);
        c+=vec3(.22,.40,.34)*cs*lagoon;
        coverage=mix(coverage,1.,lagoon);
       }
       c=mix(c,skyReflection,fresnel*.65*wetBlend);
+      // Surface crests are added after refraction, so clear water cannot wash them out.
+      float surfaceMotion=crest*breakup;
+      c+=vec3(.12,.22,.23)*surfaceMotion*(.32+.38*sho)*wetBlend;
+      c+=vec3(.018,.031,.034)*smallWaves*wetBlend;
       gl_FragColor=vec4(c,coverage);
 
     }`,
@@ -212,6 +218,7 @@ const waterMat=new THREE.ShaderMaterial({
 // A large single plane keeps the sea continuous at every allowed orbit pitch/zoom.
 const ocean=new THREE.Mesh(new THREE.PlaneGeometry(600,600),waterMat);ocean.rotation.x=-Math.PI/2;ocean.position.y=-0.18;ocean.receiveShadow=true;scene.add(ocean);
 
+scene.userData.waterOptics={ocean,uniforms:waterMat.uniforms};
 const waterRefraction=createWaterRefraction(renderer,scene,camera,ocean,waterMat.uniforms);
 
 // Soft submerged patches that read like distant sea grass / reefs.
@@ -224,15 +231,65 @@ for(const [x,z,s] of [[-18,2,2.1],[-14,-9,1.4],[-9,10,1.7],[2,-13,1.4],[18,8,2],
   const sp=new THREE.Mesh(new THREE.PlaneGeometry(4*s,2.4*s),new THREE.MeshBasicMaterial({map:patchTex,transparent:true,opacity:.18,depthWrite:false}));sp.position.set(x,-.04,z);sp.rotation.x=-Math.PI/2;scene.add(sp);
 }
 
-const applyUnderwater=underwaterMaterials(waterMat.uniforms.uTime);
+const applyUnderwater=underwaterMaterials(waterMat.uniforms.uTime,waterMat.uniforms.uCoast);
+const loadingScreen = document.querySelector('#loading-screen');
+const loadingBarFill = document.querySelector('#loading-bar-fill');
+const loadingPct = document.querySelector('#loading-pct');
+const loadingHint = document.querySelector('#loading-hint');
+
+function setLoadProgress(pct, hint) {
+  const clamped = Math.min(100, Math.max(0, Math.round(pct)));
+  if (loadingBarFill) loadingBarFill.style.width = `${clamped}%`;
+  if (loadingPct) loadingPct.textContent = `${clamped}%`;
+  if (hint && loadingHint) loadingHint.textContent = hint;
+}
+
+let currentProgress = 15;
+setLoadProgress(currentProgress, '正在唤醒碧蓝海浪与阳光…');
+
+const progressInterval = setInterval(() => {
+  if (currentProgress < 75) {
+    currentProgress += Math.floor(Math.random() * 4) + 2;
+    let hint = '正在唤醒碧蓝海浪与阳光…';
+    if (currentProgress > 35) hint = '正在雕琢热带棕榈与珊瑚…';
+    if (currentProgress > 58) hint = '正在准备海滨木屋与码头…';
+    setLoadProgress(currentProgress, hint);
+  }
+}, 220);
+
+let loadedBytes = { world: 0, boat: 0 };
+const totalEstimatedBytes = 9608508 + 21500;
+
 const loader=new GLTFLoader();
 let world,boat;
 const tmpV=new THREE.Vector3();
-const loadGLB=(url)=>new Promise((resolve,reject)=>loader.load(url,g=>resolve(g.scene),undefined,reject));
+const loadGLB=(url, key)=>new Promise((resolve,reject)=>loader.load(
+  url,
+  g=>{
+    loadedBytes[key] = (key === 'world' ? 9608508 : 21500);
+    resolve(g.scene);
+  },
+  xhr=>{
+    if (xhr && xhr.loaded) {
+      loadedBytes[key] = xhr.loaded;
+      const realPct = Math.min(95, Math.round(((loadedBytes.world + loadedBytes.boat) / totalEstimatedBytes) * 100));
+      if (realPct > currentProgress) {
+        currentProgress = realPct;
+        let hint = '正在唤醒碧蓝海浪与阳光…';
+        if (currentProgress > 40) hint = '正在雕琢热带棕榈与珊瑚…';
+        if (currentProgress > 72) hint = '正在准备海滨木屋与码头…';
+        setLoadProgress(currentProgress, hint);
+      }
+    }
+  },
+  reject
+));
 
 try {
-  [world,boat]=await Promise.all([loadGLB('/assets/atoll_world.glb'),loadGLB('/assets/boat.glb')]);
+  [world,boat]=await Promise.all([loadGLB('/assets/atoll_world.glb', 'world'),loadGLB('/assets/boat.glb', 'boat')]);
 } catch(error) {
+  clearInterval(progressInterval);
+  if (loadingHint) loadingHint.textContent = '小岛加载遇到问题，请刷新重试。';
   statusEl.textContent='Unable to load the island. Please reload.';
   statusEl.classList.add('error');
   throw error;
@@ -247,6 +304,7 @@ world.traverse(o=>{
     applyUnderwater(o.material);
     refineHarbourSurface(o.material);
     if(o.material.name==='Warm lagoon sand')o.renderOrder=-1;
+    if(o.material.name==='Submerged sand')o.renderOrder=-2;
     o.material.shadowSide=THREE.FrontSide;
     o.material.flatShading=/wood|roof|rock|plaster/i.test(o.material.name);
 
@@ -652,6 +710,17 @@ const fixedFrame=params.has('frame')?THREE.MathUtils.clamp(Number(params.get('fr
 const keys=new Set();let speed=0,steer=0;let wakeTimer=0,ringTimer=0;
 const game=createGiftGame({scene,boat,keys,onIslandTitleChange:renderHarbourSign});
 statusEl.textContent='小岛已准备好。';
+
+clearInterval(progressInterval);
+setLoadProgress(100, '小岛已准备好，欢迎登岛！');
+if (loadingScreen) {
+  setTimeout(() => {
+    loadingScreen.classList.add('fade-out');
+    setTimeout(() => {
+      try { loadingScreen.remove(); } catch(e){}
+    }, 700);
+  }, 350);
+}
 addEventListener('keydown',e=>{
  if(document.querySelector('dialog[open]')||/INPUT|TEXTAREA|SELECT/.test(e.target.tagName))return;
  if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code))e.preventDefault();

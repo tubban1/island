@@ -26,12 +26,12 @@ export function applyInteriorPatina(material,kind){
     float clouds=patinaNoise(wallP*2.8)*.65+patinaNoise(wallP*12.)*.35;
     float base=1.-smoothstep(.25,1.8,agedP.y);
     float patches=smoothstep(.53,.77,clouds)*(.10+.23*base);
-    diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.55,.48,.37),patches);
+    diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.78,.73,.64),patches*.55);
     diffuseColor.rgb*=.97+.035*patinaNoise(wallP*65.);
    `:kind==='floor'?`
     float traffic=exp(-pow((agedP.x-.5)/1.65,2.));
     float rub=patinaNoise(agedP.xz*vec2(8.,1.8));
-    diffuseColor.rgb=mix(diffuseColor.rgb,diffuseColor.rgb*1.19,traffic*(.2+.5*rub));
+    diffuseColor.rgb=mix(diffuseColor.rgb,diffuseColor.rgb*1.19,traffic*(.12+.32*rub));
     float scratches=smoothstep(.70,.86,patinaNoise(agedP.xz*vec2(65.,4.)));
     diffuseColor.rgb*=1.-scratches*(.045+.10*traffic);
     float perimeter=smoothstep(4.6,6.6,abs(agedP.x));
@@ -44,6 +44,9 @@ export function applyInteriorPatina(material,kind){
     diffuseColor.rgb=mix(diffuseColor.rgb,diffuseColor.rgb*1.18,faded*.30);
    `:kind==='furniture'?`
     float nicks=patinaNoise(agedP.xz*67.+agedP.y*31.);
+    float tableTop=smoothstep(.51,.58,agedP.y)*(1.-smoothstep(.65,.72,agedP.y))*(1.-smoothstep(.6,.9,abs(agedP.x+3.92)))*(1.-smoothstep(.36,.55,abs(agedP.z+1.35)));
+    float wipe=smoothstep(.62,.85,patinaNoise(agedP.xz*vec2(3.,75.)))*tableTop;
+    diffuseColor.rgb*=1.-wipe*.10;
     float edgeRub=vWearEdge*(.16+.32*smoothstep(.30,.78,nicks));
     diffuseColor.rgb=mix(diffuseColor.rgb,diffuseColor.rgb*vec3(1.35,1.27,1.16),edgeRub);
     float grainScuff=patinaNoise(vec2(agedP.x*53.+agedP.z*41.,agedP.y*5.));

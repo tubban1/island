@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import {createWaterRefraction} from './water-refraction.js';
 
 // Share the existing exterior scene and animation clock; no duplicated island.
 export function createWindowView(exterior,{profile=false}={}){
@@ -20,6 +21,7 @@ export function createWindowView(exterior,{profile=false}={}){
   vertexShader:'varying vec3 world;void main(){vec4 p=modelMatrix*vec4(position,1.);world=p.xyz;gl_Position=projectionMatrix*viewMatrix*p;}',
   fragmentShader:'varying vec3 world;void main(){float d=length(world.xz-cameraPosition.xz);vec3 c=mix(vec3(.025,.30,.46),vec3(.72,.86,.89),smoothstep(100.,1400.,d));gl_FragColor=vec4(c,1.);}'
  }));farSea.rotation.x=-Math.PI/2;farSea.position.y=-.195;farSea.layers.set(1);distanceScenery.add(farSea);
+ let refraction=null;
  let last=-Infinity,enabled=true,hasFrame=false,cpuMs=0,renders=0,gpuMs=null,drawCalls=0,triangles=0,extension,queries=[];
  return {
   texture:target.texture,width,height,
@@ -33,9 +35,13 @@ export function createWindowView(exterior,{profile=false}={}){
    const start=performance.now(),previous=renderer.getRenderTarget(),shadows=renderer.shadowMap.autoUpdate;
    if(query)gl.beginQuery(extension.TIME_ELAPSED_EXT,query);
    // Reuse the last exterior shadow map instead of redrawing it for the window.
-   try{renderer.shadowMap.autoUpdate=!hasFrame;renderer.setRenderTarget(target);renderer.render(exterior,camera);drawCalls=renderer.info.render.calls;triangles=renderer.info.render.triangles;}finally{if(query){gl.endQuery(extension.TIME_ELAPSED_EXT);queries.push(query);}renderer.setRenderTarget(previous);renderer.shadowMap.autoUpdate=shadows;}
+   try{
+    const optics=exterior.userData.waterOptics;
+    if(optics&&!refraction)refraction=createWaterRefraction(renderer,exterior,camera,optics.ocean,optics.uniforms,{width:640,height:256,everyFrame:true});
+    refraction?.render();
+    renderer.shadowMap.autoUpdate=!hasFrame;renderer.setRenderTarget(target);renderer.render(exterior,camera);drawCalls=renderer.info.render.calls;triangles=renderer.info.render.triangles;}finally{refraction?.finish();if(query){gl.endQuery(extension.TIME_ELAPSED_EXT);queries.push(query);}renderer.setRenderTarget(previous);renderer.shadowMap.autoUpdate=shadows;}
    const elapsed=performance.now()-start;cpuMs=renders===0?elapsed:cpuMs*.9+elapsed*.1;renders++;hasFrame=true;last=time;return true;
   },
-  dispose(){target.dispose();exterior.remove(distanceScenery);for(const mesh of [sky,farSea]){mesh.geometry.dispose();mesh.material.dispose();}}
+  dispose(){refraction?.dispose();target.dispose();exterior.remove(distanceScenery);for(const mesh of [sky,farSea]){mesh.geometry.dispose();mesh.material.dispose();}}
  };
 }
