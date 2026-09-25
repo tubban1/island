@@ -12,7 +12,7 @@ export function createWaterRefraction(renderer,scene,camera,ocean,uniforms,{widt
   camera.updateMatrixWorld();
   saved={texture:uniforms.uReefScene.value,matrix:uniforms.uReefMatrix.value,ready:uniforms.uReefReady.value,eye:uniforms.uCam.value.clone()};
   uniforms.uReefScene.value=target.texture;uniforms.uReefMatrix.value=matrix;uniforms.uCam.value.copy(camera.position);
-  const canvas=renderer.domElement,scale=Math.min(.65,960/canvas.width);
+  const canvas=renderer.domElement,scale=Math.min(.8,1280/canvas.width);
   const w=Math.max(1,fixedWidth??Math.round(canvas.width*scale)),h=Math.max(1,fixedHeight??Math.round(canvas.height*scale));
   if(w!==width||h!==height){target.setSize(w,h);width=w;height=h;}
   const moved=!lastCamera.equals(camera.matrixWorld);

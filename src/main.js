@@ -76,9 +76,10 @@ composer.addPass(new RenderPass(scene,camera));
 composer.addPass(new ShaderPass(gradingShader));
 composer.addPass(new OutputPass());
 
-// Lighting calibrated to the long palm shadows in the reference.
-const hemi=new THREE.HemisphereLight(0xfff5e6,0x7eabb3,1.12);scene.add(hemi);
-const sun=new THREE.DirectionalLight(0xffe5bb,3.0);sun.position.set(28,23,-16);sun.target.position.set(10,0,-2);scene.add(sun.target);sun.castShadow=true;
+// Late-afternoon warmth in direct light; cool skylight keeps the lagoon clear.
+const hemi=new THREE.HemisphereLight(0xfff2df,0xc5bca0,1.12);scene.add(hemi);
+const sun=new THREE.DirectionalLight(0xffc783,3.0);sun.position.set(28,15.5,-16);sun.target.position.set(10,0,-2);scene.add(sun.target);sun.castShadow=true;
+const seaSunDirection=sun.position.clone().sub(sun.target.position).normalize();
 sun.shadow.mapSize.set(2048,2048);sun.shadow.camera.left=-23;sun.shadow.camera.right=23;sun.shadow.camera.top=23;sun.shadow.camera.bottom=-23;sun.shadow.camera.near=1;sun.shadow.camera.far=80;sun.shadow.bias=-0.00015;sun.shadow.normalBias=.04;scene.add(sun);
 const fill=new THREE.DirectionalLight(0x99d8e2,.30);fill.position.set(-18,12,15);scene.add(fill);
 
@@ -88,10 +89,11 @@ const reefUniform=`
 float reefs(vec2 p){float r=99.0;\n${shallowPts.map(([x,z,s])=>`r=min(r,length((p-vec2(${x.toFixed(2)},${z.toFixed(2)}))/vec2(${s.toFixed(2)},${(s*.72).toFixed(2)})));`).join('\n')}return r;}
 `;
 const waterMat=new THREE.ShaderMaterial({
-  uniforms:{uTime:{value:0},uCam:{value:new THREE.Vector3()},uCoast:{value:createCoastalField()}},
+  uniforms:{uTime:{value:0},uCam:{value:new THREE.Vector3()},uCoast:{value:createCoastalField()},uSeaSunDirection:{value:seaSunDirection}},
   vertexShader:`varying vec3 vWorld; varying vec2 vUv; void main(){vUv=uv;vec4 w=modelMatrix*vec4(position,1.0);vWorld=w.xyz;gl_Position=projectionMatrix*viewMatrix*w;}`,
   fragmentShader:`
     precision highp float; uniform float uTime; uniform vec3 uCam; uniform sampler2D uCoast; uniform sampler2D uReefScene; uniform mat4 uReefMatrix; uniform float uReefReady; varying vec3 vWorld; varying vec2 vUv;
+    uniform vec3 uSeaSunDirection;
     ${reefUniform}
     ${clearwaterOptics}
     float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453123);}
@@ -181,15 +183,20 @@ const waterMat=new THREE.ShaderMaterial({
       // Fine directional normals catch the low sun without whitening the lagoon.
       vec3 n=cwNormal(p,uTime);
       vec3 viewDir=normalize(uCam-vWorld);
-      vec3 halfway=normalize(viewDir+normalize(vec3(20.,18.,-16.)));
-      float sparkle=pow(max(dot(n,halfway),0.),220.);
+      vec3 halfway=normalize(viewDir+uSeaSunDirection);
+      float highlightAngle=max(dot(n,halfway),0.);
+      float sparkle=pow(highlightAngle,96.);
+      sparkle/=1.+180.*fwidth(highlightAngle);
       float smallWaves=pow(.5+.5*sin(p.x*4.2+p.y*3.8-uTime*1.1+noise(p*1.8)*12.),16.);
-      c+=vec3(.90,.71,.40)*sparkle*.19*smoothstep(.40,.73,noise(p*5.));
+      // Do not threshold lattice noise or alpha with specular: that made square patches.
       c+=vec3(.007,.018,.023)*smallWaves*(1.-sho*.7);
-      coverage=max(coverage,sparkle*.27*wetBlend);
+
       float fresnel=cwFresnel(max(dot(n,viewDir),.02),1.333);
       vec3 reflected=reflect(-viewDir,n);
       vec3 skyReflection=mix(vec3(.29,.48,.58),vec3(.055,.23,.42),clamp(reflected.y,0.,1.));
+      // A restrained amber reflection toward the sun, not an orange water tint.
+      float sunsetGlow=pow(max(dot(reflected,uSeaSunDirection),0.),10.);
+      skyReflection+=vec3(.16,.075,.018)*sunsetGlow;
       if(uReefReady>.5){
        float waterDepth=max(.08,opticalDistance*.23+.28);
        vec3 ray=refract(-viewDir,n,1./1.333);
@@ -198,11 +205,11 @@ const waterMat=new THREE.ShaderMaterial({
        vec4 reefClip=uReefMatrix*vec4(vWorld+vec3(bend.x,0.,bend.y),1.);
        vec2 reefUv=reefClip.xy/reefClip.w*.5+.5;
        vec3 reef=texture2D(uReefScene,clamp(reefUv,.001,.999)).rgb;
-       vec3 transmission=exp(-vec3(.23,.095,.055)*waterDepth);
+       vec3 transmission=exp(-vec3(.15,.065,.035)*waterDepth);
        vec3 under=reef*transmission+c*(1.-transmission);
        float lagoon=(1.-depthBlend)*wetBlend;
-       c=mix(c,under,lagoon*.62);
-       c+=vec3(.22,.40,.34)*cs*lagoon;
+       c=mix(c,under,lagoon*.86);
+       c+=vec3(.15,.25,.21)*cs*lagoon;
        coverage=mix(coverage,1.,lagoon);
       }
       c=mix(c,skyReflection,fresnel*.65*wetBlend);
@@ -210,6 +217,14 @@ const waterMat=new THREE.ShaderMaterial({
       float surfaceMotion=crest*breakup;
       c+=vec3(.12,.22,.23)*surfaceMotion*(.32+.38*sho)*wetBlend;
       c+=vec3(.018,.031,.034)*smallWaves*wetBlend;
+      // Small moving facets broaden the sun path; add after transmission so
+      // the refraction pass cannot erase the glints. Filter at pixel scale.
+      float glintPhaseA=dot(p,vec2(13.7,8.9))-uTime*1.6;
+      float glintPhaseB=dot(p,vec2(-7.3,17.1))+uTime*1.15;
+      float facets=pow(max(0.,sin(glintPhaseA)*sin(glintPhaseB)),12.);
+      facets/=1.+3.*(fwidth(glintPhaseA)+fwidth(glintPhaseB));
+      float sunPath=.12+.88*pow(highlightAngle,8.);
+      c+=vec3(1.,.82,.54)*(sparkle*.7+facets*sunPath*1.4)*wetBlend;
       gl_FragColor=vec4(c,coverage);
 
     }`,

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import {applyPalmBreeze} from './sea-breeze.js';
 
 // The source GLB batches foliage by material. Remove only crown triangles,
 // preserving the low garden foliage and the original curved trunks.
@@ -65,7 +66,7 @@ export function refineHarbourGarden(world) {
  geometry.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));
  geometry.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));geometry.computeVertexNormals();
  const leaves=new THREE.Mesh(geometry,new THREE.MeshStandardMaterial({vertexColors:true,roughness:.82,side:THREE.DoubleSide}));
- leaves.name='Feathered palm crowns';leaves.castShadow=true;leaves.receiveShadow=true;world.add(leaves);
+ leaves.name='Feathered palm crowns';leaves.castShadow=true;leaves.receiveShadow=true;applyPalmBreeze(leaves,crowns);world.add(leaves);
 
  const timber=new THREE.MeshStandardMaterial({color:'#aa7846',roughness:.94});
  function beam(a,b,width,depth){

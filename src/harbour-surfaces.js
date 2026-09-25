@@ -6,6 +6,11 @@ export function refineHarbourSurface(material) {
  const sand=/sand/i.test(name), plaster=/plaster/i.test(name), roof=/roof/i.test(name);
  const leaf=/Palm (leaf|lime|dark)/.test(name);
  if(!wood&&!stone&&!sand&&!plaster&&!roof&&!leaf)return;
+ if(plaster){
+  material.color.set('#fffef9');
+  // A little warm diffuse bounce lifts shaded limewash without hiding its relief.
+  material.emissive.set('#fff0d6');material.emissiveIntensity=.10;
+ }
  material.roughness=wood?.88:stone?.96:roof?.91:leaf?.78:1;
  const previous=material.onBeforeCompile, cacheKey=material.customProgramCacheKey();
  material.onBeforeCompile=shader=>{
@@ -76,6 +81,6 @@ export function refineHarbourSurface(material) {
    roughnessFactor=mix(roughnessFactor,.32,damp*.82);
   `);
  };
- material.customProgramCacheKey=()=>cacheKey+'-harbour-surface-v5';
+ material.customProgramCacheKey=()=>cacheKey+'-harbour-surface-v6';
  material.needsUpdate=true;
 }

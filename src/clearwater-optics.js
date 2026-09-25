@@ -14,7 +14,10 @@ vec3 cwNormal(vec2 p,float time){
   float k=float(i),angle=.47+k*2.39996;
   vec2 direction=vec2(cos(angle),sin(angle));
   float frequency=.85*pow(1.67,k);
-  slope+=direction*cos(dot(p,direction)*frequency-time*sqrt(9.81*frequency)+k*1.71)*(.045/(1.+k*.32));
+  float phase=dot(p,direction)*frequency-time*sqrt(9.81*frequency)+k*1.71;
+  // Subpixel waves contribute to roughness rather than aliased highlight tiles.
+  float resolved=1.-smoothstep(.35,1.7,fwidth(phase));
+  slope+=direction*cos(phase)*(.045/(1.+k*.32))*resolved;
  }
  return normalize(vec3(-slope.x,1.,-slope.y));
 }

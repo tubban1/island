@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import {seaBreezeStrength,updateSeaBreeze} from './sea-breeze.js';
+import {createDetailedHammock,createRetreatPalmCrown} from './hammock-detail.js';
 import {mergeGeometries} from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
 // One lived-in garden corner, leaving the front-door / pier route clear.
@@ -20,29 +22,10 @@ export function createIslandRetreat(world){
  for(const [x,z,side] of [[4.8,-3.8,-1],[9.2,-3.8,1]]){
   const y=ground(x,z),curve=new THREE.CatmullRomCurve3([new THREE.Vector3(x,y,z),new THREE.Vector3(x+side*.28,y+1.65,z),new THREE.Vector3(x+side*.60,y+3.4,z-.12)]);
   add(new THREE.TubeGeometry(curve,16,.13,8,false),wood,0,0,0);
-  const crown=curve.getPoint(1);
-  for(let f=0;f<9;f++){
-   const a=f*Math.PI*2/9;
-   for(let k=1;k<=10;k++){
-    const t=k/10,r=t*1.65,yy=Math.sin(t*Math.PI)*.40-t*t*.45;
-    for(const side of [-1,1]){
-     const pos=crown.clone().add(new THREE.Vector3(Math.cos(a)*r,yy,Math.sin(a)*r));
-     const l=leaf(pos.x,pos.y,pos.z,.22*Math.sin(t*Math.PI)+.07,a+side*.8,greens[f%3]);l.rotation.z=1.0;l.rotation.x=a+side*.6;
-    }
-   }
-  }
+  // Crown is kept separate because its per-leaf vertex colours are intentional.
+  world.add(createRetreatPalmCrown(curve.getPoint(1),side<0?0:1));
  }
- const hammock=new THREE.Group();hammock.position.set(7,baseY+1.1,-3.8);group.add(hammock);
- const vertices=[],uv=[],indices=[];
- for(let i=0;i<=32;i++)for(let j=0;j<=10;j++){
-  const u=i/32,v=j/10,x=(u-.5)*3.8,z=(v-.5)*.95*Math.sin(Math.PI*u);
-  vertices.push(x,-.64*Math.sin(Math.PI*u)+.16*Math.pow((v-.5)*2,2),z);uv.push(u,v);
-  if(i<32&&j<10){const n=i*11+j;indices.push(n,n+11,n+1,n+1,n+11,n+12);}
- }
- const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));geo.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));geo.setIndex(indices);geo.computeVertexNormals();
- ivory.side=THREE.DoubleSide;const cloth=new THREE.Mesh(geo,ivory);cloth.castShadow=cloth.receiveShadow=true;hammock.add(cloth);
- for(const side of [-1,1])beam([7+side*1.9,baseY+1.1,-3.8],[7+side*2.2,baseY+1.5,-3.8],.024,ivory);
- const pillow=new THREE.Mesh(new THREE.SphereGeometry(1,14,8),teal);pillow.position.set(-1.1,-.37,0);pillow.scale.set(.32,.09,.28);hammock.add(pillow);
+ const hammock=createDetailedHammock();hammock.position.set(7,baseY+1.65,-3.8);group.add(hammock);
  // Small breakfast spot: weathered round table, stools, ceramic cup and fruit.
  const tx=7.8,tz=.3,ty=ground(tx,tz);
  add(new THREE.CylinderGeometry(.65,.65,.10,24),wood,tx,ty+.72,tz);
@@ -59,9 +42,15 @@ export function createIslandRetreat(world){
   for(let j=0;j<5;j++){const b=j*2.4+i;leaf(x+Math.cos(b)*.15,y+.20+(j%3)*.10,z+Math.sin(b)*.15,.24+(j%3)*.10,b,greens[(i+j)%3]);}
   if(i%4===0){const r=add(new THREE.IcosahedronGeometry(1,1),stone,x+.35,y+.1,z);r.scale.set(.30,.23,.28);}
  }
- // Batch static props by material; the cloth is the only moving garden object.
+ // Batch static props only; palm crowns and hammock keep their own animations.
  const batches=new Map();
  for(const o of [...group.children]){if(!o.isMesh)continue;o.updateMatrix();const g=o.geometry.index?o.geometry.toNonIndexed():o.geometry.clone();g.applyMatrix4(o.matrix);for(const key of Object.keys(g.attributes))if(!['position','normal','uv'].includes(key))g.deleteAttribute(key);if(!batches.has(o.material))batches.set(o.material,[]);batches.get(o.material).push(g);group.remove(o);}
  for(const [m,geometries]of batches){const merged=new THREE.Mesh(mergeGeometries(geometries),m);merged.castShadow=merged.receiveShadow=true;group.add(merged);geometries.forEach(g=>g.dispose());}
- return {update(t){hammock.rotation.x=Math.sin(t*.63)*.035;}};
+ return {update(t){
+  updateSeaBreeze(t);
+  const gust=seaBreezeStrength(t-.9);
+  // Rotate about the suspension line: both rope anchors remain fixed.
+  hammock.rotation.x=.012+Math.sin(t*.71+.18*Math.sin(t*.19))*(.028+gust*.045)
+   +Math.sin(t*.39+1.2)*.012;
+ }};
 }
